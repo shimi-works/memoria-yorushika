@@ -1089,7 +1089,7 @@ const RICH=[
     yuuryoku:['「本物」を作れぬ者が他者の音を盗む――創作の業と自己嫌悪を見つめると読まれる。'],
     user:[]}},
 
- {id:'hirudombi',title:'昼鳶',reading:'ひるとんび',album:'盗作',albumYear:'盗作 #2',bpm:125,key:'D#m',season:'summer',
+ {id:'hirudombi',title:'昼鳶',reading:'ひるとび',album:'盗作',albumYear:'盗作 #2',bpm:125,key:'D#m',season:'summer',
   tieup:'',
   axes:{t:.35,e:.6}, motifs:['盗み','嫉妬','昼','夏'],
   lyric:'昼鳶',
@@ -1305,6 +1305,30 @@ Object.entries(LYRIC_TAGS).forEach(([word,titles])=>{
     if(s) s.motifs=[...new Set([...(s.motifs||[]),word])]; });
 });
 
+/* ── 作者・登場人物・出典ジャンルのタグ付け ──
+   元ネタの作者名や登場人物名、出典の種類をタグ化して横断検索できるようにする（歌詞は載せない）。 */
+const TAG_MAP={
+  // 俳人・詩人・作家（その曲が下敷きにした作者）
+  '尾崎放哉':['嘘月','思想犯'],
+  '種田山頭火':['雨晴るる'],
+  '島崎藤村':['茜'],
+  '芥川龍之介':['パドドゥ'],
+  '太宰治':['斜陽'],
+  '川端康成':['花に亡霊','雪國'],
+  '萩原朔太郎':['月に吠える','火星人','太陽'],
+  '北原白秋':['忘れてください'],
+  '宮沢賢治':['又三郎','靴の花火','千鳥','修羅'],
+  // 二部作の登場人物
+  'エイミー':['藍二乗'],
+  'エルマ':['憂一乗','心に穴が空いた','エイミー'],
+  // 出典の種類
+  '外国小説':['老人と海','ノーチラス','アルジャーノン','レプリカント','451'],
+};
+Object.entries(TAG_MAP).forEach(([tag,titles])=>{
+  titles.forEach(t=>{ const s=SONGS.find(x=>x.title===t);
+    if(s) s.motifs=[...new Set([...(s.motifs||[]),tag])]; });
+});
+
 /* 聖地・地点（複数曲で共有）。conf: koushiki=公式/原作の舞台 / yuuryoku=有力な聖地・情景 / user=ファン考察
    多くはファンの聖地巡礼まとめ（MV・ジャケット背景の同定）に基づく。 */
 const PLACES={
@@ -1374,8 +1398,8 @@ const MOTIF_GROUPS=[
   ['花・生きもの', ['花','桜','百日紅','鳥','蛇','蝶','鯨','犬']],
   ['心情・概念', ['喪失','別れ','孤独','衝動','郷愁','空虚','怒り','距離','退廃','問い','心','時間','自由','反抗','変身','知','諦め','諦観','儚さ','嫉妬','告白','不安','疎外','祈り','日常','消費','信仰']],
   ['情景・旅', ['旅','旅立ち','北欧','行進','自転車','実在地名','都市','都','夏祭り','手紙','書簡']],
-  ['文学・創作', ['引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ']],
-  ['人物・原作', ['宮沢賢治','エイミー','石川啄木','萩原朔太郎','芥川龍之介','島崎藤村','在原業平','元稹']],
+  ['文学・創作', ['外国小説','引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ']],
+  ['人物・原作', ['宮沢賢治','太宰治','川端康成','萩原朔太郎','芥川龍之介','島崎藤村','尾崎放哉','種田山頭火','北原白秋','石川啄木','在原業平','元稹','エイミー','エルマ']],
   ['色', ['赤','青','花緑青','レモン色','青い炎']],
 ];
 const inGroup=new Set(MOTIF_GROUPS.flatMap(g=>g[1]));
@@ -1447,8 +1471,10 @@ function buildFilters(host){
     return c;
   };
   // ジャンルごとに、2曲以上のタグだけを整列表示
+  const ALWAYS=new Set(['人物・原作']); // 作者・登場人物タグは1曲でも表示
   MOTIF_GROUPS.forEach(([label,list])=>{
-    const shown=list.filter(m=>MOTIF_COUNT[m]&&visibleMotif(m));
+    const minC=ALWAYS.has(label)?1:2;
+    const shown=list.filter(m=>MOTIF_COUNT[m]>=minC);
     if(!shown.length)return;
     const g=document.createElement('span'); g.className='fg';
     const lab=document.createElement('span'); lab.className='fg-label'; lab.textContent=label;
