@@ -1298,6 +1298,16 @@ const RICH=[
   theory:{koushiki:['劇場版『僕の心のヤバイやつ』主題歌。'],
     yuuryoku:['TVアニメ版OP「斜陽」（太宰治）と対をなす〈姉妹曲〉として読まれる。ともに「僕の心のヤバイやつ」のタイアップで、沈みゆく夕日の色と近代文学を重ねる。'],
     user:[]}},
+
+ {id:'himawari',title:'向日葵',reading:'ひまわり',album:'（n-buna 単独曲）',albumYear:'n-buna「向日葵」（ピアノ弾き語り）',season:'summer',
+  tieup:'',
+  axes:{t:.35,e:.62}, motifs:['夏','向日葵','海','花','約束'],
+  lyric:'向日葵',
+  works:[],
+  places:[{ref:'etchumiyazaki'}],
+  theory:{koushiki:['n-buna名義（ヨルシカのコンポーザー）が「結婚してください」とだけ書き添えて公開したピアノ弾き語り曲。'],
+    yuuryoku:['「私の命をあなたにあげたい」と歌う、向日葵を捧げるプロポーズの曲。花言葉「あなただけを見つめる」に重なる。ファン考察では、のちの『盗作』の主人公〈音楽を盗む男〉が生まれるきっかけとなった原点の一曲とも読まれる。'],
+    user:[]}},
 ];
 
 /* ── 全収録曲（アルバムのみ収録・インスト含む）。[題,アルバム,トラック,BPM,Key,インスト?]
@@ -1604,6 +1614,8 @@ const PLACES={
    note:'アルバム表題曲「盗作」の聖地として挙げられる房総方面の海辺。'},
  wakayama:{name:'若竹の杜 若山農場（栃木県宇都宮市）',lat:36.6198,lng:139.9350,conf:'yuuryoku',
    note:'孟宗竹の竹林で知られる名所。「都落ち」の竹の情景の聖地とされる（白浜海岸とあわせて同曲の聖地群を成す）。'},
+ etchumiyazaki:{name:'越中宮崎駅・ヒスイ海岸（富山県朝日町）',lat:36.9539,lng:137.5489,conf:'user',
+   note:'n-buna「向日葵」に重ねられる海辺。ヒスイ海岸（宮崎・境海岸）は駅前すぐの浜で、夏は海水浴、通年でヒスイ拾いができる。n-bunaが向日葵を渡してプロポーズした地とされるが、具体的な駅の特定はファンの推測に基づく。'},
 };
 
 /* ═══════════════ RENDER ═══════════════ */
@@ -1886,7 +1898,7 @@ function renderGrid(){
         ${s.places.length?'<i class="badge-place">聖地</i>':''}
         ${s.shincho?'<i class="badge-shincho">新潮文庫</i>':''}
       </div>
-      <div class="yr">♪ ${s.key}　・　${s.bpm} BPM</div>
+      ${s.bpm?`<div class="yr">♪ ${s.key}　・　${s.bpm} BPM</div>`:'<div class="yr">♪</div>'}
       <h3>${s.title}</h3><div class="rd">${s.reading}</div>
       <div class="al">《 ${en.album} 》${mark}</div>
       ${s.tieup?`<div class="tie">▸ ${s.tieup}</div>`:''}
@@ -2022,8 +2034,8 @@ function openDetail(id){
       ${s.tieup?`<div class="tieup-hero">▸ ${s.tieup}</div>`:''}
       <div class="meta">
         <span><b>収録</b> ${s.albumYear||s.album}${s.rerec?` <span style="color:var(--strong)">／ ${s.rerec.albumYear}（Re-Rec）</span>`:''}</span>
-        <span><b>Key</b> ${s.key}</span>
-        <span><b>BPM</b> ${s.bpm}</span>
+        ${s.key?`<span><b>Key</b> ${s.key}</span>`:''}
+        ${s.bpm?`<span><b>BPM</b> ${s.bpm}</span>`:''}
         <span><b>季節</b> <span style="color:${hero}">●</span> ${SEASON_JP[s.season]}</span>
       </div>
     </div>
