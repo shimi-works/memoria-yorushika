@@ -56,11 +56,15 @@
   .lead{color:var(--ink-dim);font-size:13.5px;line-height:1.9;letter-spacing:.03em;max-width:720px;margin:6px auto 20px;text-align:center}
 
   /* ── filters ── */
-  .filters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 auto 20px;max-width:840px}
-  .chip{font-family:inherit;font-size:12.5px;letter-spacing:.06em;color:var(--ink-dim);
-    border:1px solid var(--line);background:#101a30;border-radius:999px;padding:6px 13px;cursor:pointer;transition:.15s}
+  .filters{display:flex;flex-wrap:wrap;gap:8px 10px;justify-content:center;align-items:center;margin:0 auto 20px;max-width:920px}
+  .chip{font-family:inherit;font-size:12px;letter-spacing:.04em;color:var(--ink-dim);
+    border:1px solid var(--line);background:#101a30;border-radius:999px;padding:5px 12px;cursor:pointer;transition:.15s}
   .chip:hover{color:var(--ink);border-color:var(--indigo)}
   .chip.on{color:#0b0f1c;background:var(--gold);border-color:var(--gold);font-weight:600}
+  .chip.all{border-color:var(--gold);color:var(--gold)}
+  /* タグのジャンル分け表示 */
+  .fg{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 9px;border:1px dashed var(--line);border-radius:12px}
+  .fg-label{font-size:10.5px;letter-spacing:.12em;color:var(--gold);opacity:.85;margin-right:2px;white-space:nowrap}
 
   /* ── constellation / world map ── */
   .cosmos-wrap{position:relative}
@@ -78,7 +82,7 @@
   .gridline{position:absolute;background:#ffffff0d}
   .gridline.h{left:0;right:0;height:1px}
   .gridline.v{top:0;bottom:0;width:1px}
-  .star{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:2;transition:.25s}
+  .star{position:absolute;transform:translate(-50%,-50%) scale(calc(1 / var(--cz,1)));cursor:pointer;z-index:2;transition:transform .12s ease,opacity .25s}
   .star .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 4px #ffffff10,0 0 16px 2px currentColor;
     background:currentColor;margin:0 auto;transition:.2s}
   .star .nm{margin-top:5px;font-size:11.5px;color:#cfd8ee;white-space:nowrap;letter-spacing:.04em;text-shadow:0 1px 4px #000a;
@@ -1001,7 +1005,9 @@ const RICH=[
   lyric:'へび',
   works:[{t:'旧約聖書「知恵の実」（蛇の挿話）',a:'旧約聖書',conf:'koushiki',
     n:'n-bunaは実際に見た蛇の鱗の美しさから着想し、聖書の「知恵の実」を「知への欲求」の比喩と解釈。「へびが春に目覚め世界を知る歌」と語る。よもぎ・カタバミなど春の季語を配す。'}],
-  places:[],
+  quotes:[{a:'元稹（漢詩）',t:'「離思」に詠まれる地名「巫山」',conf:'koushiki',
+    n:'歌詞に実在の地名「巫山」が登場する。長江三峡の名峰で、唐の詩人・元稹の「離思」など漢詩で恋情の象徴として詠まれた地。知識欲が海外の詩にまで及ぶことを示す一語。'}],
+  places:[{ref:'wushan'}],
   theory:{koushiki:['アニメ『チ。』後半クールED主題歌。旧約聖書の「知恵の実」がモチーフ（n-buna言及）。'],
     yuuryoku:['「チ。」二部作EDとして「アポリア」と対をなし、知ることの罪と歓びを蛇に託す読み。'],
     user:['書簡の流れでは、秋の近づきと前便の「気球の詩（＝アポリア）」への言及から、その直後の一通。知識欲は元稹「離思」など海外の詩にまで及ぶが、同時に「穴が空いたような」欠落感に気づき始める（物語タブ「書簡の時系列」参照）。']}},
@@ -1287,6 +1293,18 @@ const light=FULL.filter(r=>!_rich.has(r[0])).map((r,idx)=>{
 });
 const SONGS=[...RICH,...light];
 
+/* ── 歌詞キーワードのタグ付け ──
+   歌詞に登場する「単語」をタグとして横断させる（歌詞本文は載せない）。
+   例: 「百日紅」は 爆弾魔・エイミー の歌詞に出るので、両方が同じタグで反応する。
+   { 単語: [その語が歌詞に出る曲名, ...] } を足すだけで、モチーフ絞り込みに反映される。 */
+const LYRIC_TAGS={
+  '百日紅':['爆弾魔','エイミー'],
+};
+Object.entries(LYRIC_TAGS).forEach(([word,titles])=>{
+  titles.forEach(t=>{ const s=SONGS.find(x=>x.title===t);
+    if(s) s.motifs=[...new Set([...(s.motifs||[]),word])]; });
+});
+
 /* 聖地・地点（複数曲で共有）。conf: koushiki=公式/原作の舞台 / yuuryoku=有力な聖地・情景 / user=ファン考察
    多くはファンの聖地巡礼まとめ（MV・ジャケット背景の同定）に基づく。 */
 const PLACES={
@@ -1330,6 +1348,8 @@ const PLACES={
    note:'川端康成『雪国』の舞台とされる雪深い温泉町。ヨルシカ「雪國」の文学モチーフとの結びつきはファン考察に基づく象徴的な配置（本人の言及や物理的な聖地化は未確認）。'},
  tokoname:{name:'常滑・やきもの散歩道／土管坂（愛知県常滑市）',lat:34.8880,lng:136.8389,conf:'yuuryoku',
    note:'アニメ映画『泣きたい私は猫をかぶる』の舞台となった焼き物の街。主題歌「花に亡霊」・挿入歌「夜行」の起用は公式で、常滑市もロケ地マップを制作。ファンは土管坂などを巡礼する（映画を介した聖地）。'},
+ wushan:{name:'巫山（ふざん・中国 重慶市／長江三峡）',lat:31.0744,lng:109.8785,conf:'koushiki',
+   note:'「へび」の歌詞に登場する実在の地名。長江三峡の名峰で、唐の詩人・元稹の「離思」など漢詩で恋情の象徴として詠まれてきた土地。歌詞の知識欲が海外の詩にまで及ぶことを示す。'},
 };
 
 /* ═══════════════ RENDER ═══════════════ */
@@ -1346,7 +1366,21 @@ $$('.tabs button').forEach(b=>b.onclick=()=>{
 });
 
 // motif universe
-const ALL_MOTIFS=[...new Set(SONGS.flatMap(s=>s.motifs))];
+// タグ（モチーフ）の集計とジャンル分け
+const MOTIF_COUNT={};
+SONGS.forEach(s=>(s.motifs||[]).forEach(m=>MOTIF_COUNT[m]=(MOTIF_COUNT[m]||0)+1));
+const MOTIF_GROUPS=[
+  ['季節・自然', ['夏','夜','春','冬','月','海','風','光','水','火','雨','夕暮れ','雪','太陽','雲','昼','朝']],
+  ['花・生きもの', ['花','桜','百日紅','鳥','蛇','蝶','鯨','犬']],
+  ['心情・概念', ['喪失','別れ','孤独','衝動','郷愁','空虚','怒り','距離','退廃','問い','心','時間','自由','反抗','変身','知','諦め','諦観','儚さ','嫉妬','告白','不安','疎外','祈り','日常','消費','信仰']],
+  ['情景・旅', ['旅','旅立ち','北欧','行進','自転車','実在地名','都市','都','夏祭り','手紙','書簡']],
+  ['文学・創作', ['引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ']],
+  ['人物・原作', ['宮沢賢治','エイミー','石川啄木','萩原朔太郎','芥川龍之介','島崎藤村','在原業平','元稹']],
+  ['色', ['赤','青','花緑青','レモン色','青い炎']],
+];
+const inGroup=new Set(MOTIF_GROUPS.flatMap(g=>g[1]));
+// count>=2 のタグだけを表示（1曲だけのタグは隠す）
+const visibleMotif=m=>MOTIF_COUNT[m]>=2;
 let activeMotif=null;
 
 // ── cosmos ──
@@ -1372,6 +1406,7 @@ setTimeout(()=>{cosmos.classList.remove('igniting');$('#view-cosmos').classList.
 let cz=1,cx=0,cy=0,czDrag=false,czDragged=false,czSX,czSY;
 function czApply(){
   cosmosInner.style.transform=`translate(${cx}px,${cy}px) scale(${cz})`;
+  cosmos.style.setProperty('--cz',cz);          // 星の中身を逆スケール（曲名を一定サイズに保つ）
   cosmos.classList.toggle('show-labels',cz>=1.7);
   cosmos.classList.toggle('zoomed',cz>1.02);
   const hint=$('#czHint'); if(hint) hint.style.opacity=cz>1.02?'0':'';
@@ -1386,7 +1421,7 @@ $('#czOut').onclick=()=>{const R=cosmos.getBoundingClientRect();czZoom(1/1.4,R.w
 $('#czReset').onclick=()=>{cz=1;cx=0;cy=0;czApply();};
 cosmos.addEventListener('wheel',e=>{e.preventDefault();const R=cosmos.getBoundingClientRect();
   czZoom(e.deltaY<0?1.18:1/1.18,e.clientX-R.left,e.clientY-R.top);},{passive:false});
-cosmos.addEventListener('pointerdown',e=>{if(cz<=1||e.button!==0)return;e.preventDefault();czDrag=true;czDragged=false;czSX=e.clientX-cx;czSY=e.clientY-cy;try{cosmos.setPointerCapture(e.pointerId);}catch(_){}});
+cosmos.addEventListener('pointerdown',e=>{if(e.target.closest('.cz-ctrl'))return;if(cz<=1||e.button!==0)return;e.preventDefault();czDrag=true;czDragged=false;czSX=e.clientX-cx;czSY=e.clientY-cy;try{cosmos.setPointerCapture(e.pointerId);}catch(_){}});
 cosmos.addEventListener('dragstart',e=>e.preventDefault()); // 画像/テキストのドラッグ開始を抑止
 cosmos.addEventListener('pointermove',e=>{
   if(!czDrag)return;
@@ -1401,15 +1436,34 @@ cosmos.addEventListener('lostpointercapture',czEnd);
 function buildFilters(host){
   host.innerHTML='';
   const all=document.createElement('button');
-  all.className='chip'+(activeMotif?'':' on'); all.textContent='すべて';
+  all.className='chip all'+(activeMotif?'':' on'); all.textContent='すべて';
   all.onclick=()=>{activeMotif=null;syncFilters();};
   host.appendChild(all);
-  ALL_MOTIFS.forEach(m=>{
+  const chip=m=>{
     const c=document.createElement('button');
     c.className='chip'+(activeMotif===m?' on':''); c.textContent=m;
+    c.title=`${MOTIF_COUNT[m]}曲`;
     c.onclick=()=>{activeMotif=activeMotif===m?null:m;syncFilters();};
-    host.appendChild(c);
+    return c;
+  };
+  // ジャンルごとに、2曲以上のタグだけを整列表示
+  MOTIF_GROUPS.forEach(([label,list])=>{
+    const shown=list.filter(m=>MOTIF_COUNT[m]&&visibleMotif(m));
+    if(!shown.length)return;
+    const g=document.createElement('span'); g.className='fg';
+    const lab=document.createElement('span'); lab.className='fg-label'; lab.textContent=label;
+    g.appendChild(lab);
+    shown.forEach(m=>g.appendChild(chip(m)));
+    host.appendChild(g);
   });
+  // どのジャンルにも属さない2曲以上のタグ → その他
+  const other=Object.keys(MOTIF_COUNT).filter(m=>visibleMotif(m)&&!inGroup.has(m)).sort((a,b)=>MOTIF_COUNT[b]-MOTIF_COUNT[a]);
+  if(other.length){
+    const g=document.createElement('span'); g.className='fg';
+    const lab=document.createElement('span'); lab.className='fg-label'; lab.textContent='その他';
+    g.appendChild(lab); other.forEach(m=>g.appendChild(chip(m)));
+    host.appendChild(g);
+  }
 }
 function syncFilters(){
   buildFilters($('#cosmosFilters')); buildFilters($('#songFilters'));
