@@ -1300,7 +1300,7 @@ const RICH=[
     user:[]}},
 
  {id:'himawari',title:'向日葵',reading:'ひまわり',album:'（n-buna 単独曲）',albumYear:'n-buna「向日葵」（ピアノ弾き語り）',season:'summer',
-  tieup:'',
+  tieup:'', hideCosmos:true, // ヨルシカ名義でないため世界観マップ（星座）には出さない。楽曲カード・聖地アトラスには表示
   axes:{t:.35,e:.62}, motifs:['夏','向日葵','海','花','約束'],
   lyric:'向日葵',
   works:[],
@@ -1655,7 +1655,7 @@ const cosmosInner=$('#cosmosInner');
 cosmos.classList.add('igniting');
 $('#view-cosmos').classList.add('first');
 const _occ={}; // 同じ座標に重なる星を黄金角スパイラルで少しずらす（クリック可能に）
-SONGS.forEach((s,i)=>{
+SONGS.filter(s=>!s.hideCosmos).forEach((s,i)=>{
   const el=document.createElement('div');
   el.className='star'; el.dataset.id=s.id;
   let left=5+s.axes.t*90, top=7+(1-s.axes.e)*84;
@@ -1765,9 +1765,9 @@ function drawLinks(){
   let groups=[];
   if(linkMode==='author'){
     const authors=(MOTIF_GROUPS.find(g=>g[0]==='人物・原作')||[0,[]])[1];
-    authors.forEach(a=>{ const g=SONGS.filter(s=>s.motifs.includes(a)); if(g.length>=2)groups.push(g); });
+    authors.forEach(a=>{ const g=SONGS.filter(s=>!s.hideCosmos&&s.motifs.includes(a)); if(g.length>=2)groups.push(g); });
   }else if(linkMode==='place'){
-    Object.keys(PLACES).forEach(ref=>{ const g=SONGS.filter(s=>s.places&&s.places.some(p=>p.ref===ref)); if(g.length>=2)groups.push(g); });
+    Object.keys(PLACES).forEach(ref=>{ const g=SONGS.filter(s=>!s.hideCosmos&&s.places&&s.places.some(p=>p.ref===ref)); if(g.length>=2)groups.push(g); });
   }
   const connected=new Set();
   groups.forEach(g=>{
