@@ -1359,7 +1359,7 @@ const TAG_MAP={
   'エイミー':['藍二乗'],
   'エルマ':['憂一乗','心に穴が空いた','エイミー'],
   // 出典の種類
-  '外国小説':['老人と海','ノーチラス','アルジャーノン','レプリカント','451'],
+  '外国小説':['老人と海','ノーチラス','アルジャーノン','レプリカント','451','いさな','左右盲','チノカテ','ブレーメン','さよならモルテン'],
 };
 Object.entries(TAG_MAP).forEach(([tag,titles])=>{
   titles.forEach(t=>{ const s=SONGS.find(x=>x.title===t);
@@ -1609,9 +1609,9 @@ const MOTIF_GROUPS=[
   ['情景・旅', ['旅','旅立ち','北欧','行進','自転車','実在地名','都市','都','夏祭り','手紙','書簡','望郷','街','都会','電車','車窓','青春','東京','気球','水平線']],
   ['文学・創作', ['外国小説','クラシック','引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ','芸術','模倣','盗作','詩作','哲学','批評','皮肉','レコード','筆','描く']],
   ['人物・原作', ['宮沢賢治','太宰治','川端康成','萩原朔太郎','芥川龍之介','島崎藤村','夏目漱石','梶井基次郎','井伏鱒二','尾崎放哉','種田山頭火','与謝蕪村','正岡子規','加賀千代女','岸田稚魚','山口青邨','古舘曹人','北原白秋','石川啄木','在原業平','元稹','水野葉舟','平家物語','万葉集','メルヴィル','エイミー','エルマ']],
-  ['色', ['赤','青','藍','群青','茜','花緑青','レモン色','青い炎']],
 ];
 const inGroup=new Set(MOTIF_GROUPS.flatMap(g=>g[1]));
+const SUPPRESS_MOTIF=new Set(['赤','青','藍','群青','茜','花緑青','レモン色','青い炎']); // 色タグは絞り込みに出さない
 // count>=2 のタグだけを表示（1曲だけのタグは隠す）
 const visibleMotif=m=>MOTIF_COUNT[m]>=2;
 let activeMotif=null;
@@ -1659,7 +1659,7 @@ const czPts=new Map(); let czPinchDist=0, czPinchCz=1;
 const czDist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 cosmos.addEventListener('dragstart',e=>e.preventDefault());
 cosmos.addEventListener('pointerdown',e=>{
-  if(e.target.closest('.cz-ctrl'))return;
+  if(e.target.closest('.cz-ctrl,.link-ctrl'))return;   // コントロール上ではドラッグ/キャプチャを開始しない
   czPts.set(e.pointerId,{x:e.clientX,y:e.clientY});
   try{cosmos.setPointerCapture(e.pointerId);}catch(_){}
   if(czPts.size===2){ czDrag=false; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true; }
@@ -1767,7 +1767,7 @@ function buildFilters(host){
     host.appendChild(g);
   });
   // どのジャンルにも属さない2曲以上のタグ → その他
-  const other=Object.keys(MOTIF_COUNT).filter(m=>visibleMotif(m)&&!inGroup.has(m)).sort((a,b)=>MOTIF_COUNT[b]-MOTIF_COUNT[a]);
+  const other=Object.keys(MOTIF_COUNT).filter(m=>visibleMotif(m)&&!inGroup.has(m)&&!SUPPRESS_MOTIF.has(m)).sort((a,b)=>MOTIF_COUNT[b]-MOTIF_COUNT[a]);
   if(other.length){
     const g=document.createElement('span'); g.className='fg';
     const lab=document.createElement('span'); lab.className='fg-label'; lab.textContent='その他';
