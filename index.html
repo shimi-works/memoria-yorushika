@@ -439,6 +439,29 @@
   .trk-motif{font-style:normal;font-size:10.5px;color:var(--strong);letter-spacing:.03em;opacity:.9}
   .trk-static.inst .trk-motif{color:var(--ink-dim)}
   @media(max-width:560px){.ch-head,.ch-body{padding-left:18px;padding-right:18px}.ch-title{font-size:22px}}
+  /* ── 星座線 ── */
+  #linkLayer{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible}
+  #linkLayer line{stroke:var(--gold,#d9b46a);stroke-width:1.1;opacity:0;animation:linkIn .5s ease forwards}
+  @keyframes linkIn{to{opacity:.34}}
+  .cosmos.linking .star.unlinked{opacity:.12;filter:saturate(.3)}
+  .cosmos.linking .star.unlinked .nm{opacity:0!important}
+  .link-ctrl{position:absolute;left:10px;top:10px;z-index:8;display:flex;align-items:center;gap:4px;flex-wrap:wrap;
+    background:#101a30d0;border:1px solid var(--line);border-radius:10px;padding:5px 7px;backdrop-filter:blur(3px)}
+  .link-ctrl .lc-label{font-size:10px;letter-spacing:.08em;color:var(--ink-dim);margin-right:2px}
+  .link-ctrl button{font-family:inherit;font-size:11px;color:var(--ink-dim);background:transparent;border:1px solid transparent;
+    border-radius:7px;padding:3px 9px;cursor:pointer;transition:.15s}
+  .link-ctrl button:hover{color:var(--ink)}
+  .link-ctrl button.on{color:#0b0f1c;background:var(--gold,#d9b46a);font-weight:600}
+  @media(max-width:560px){.link-ctrl .lc-label{display:none}}
+
+  /* ── 共有ボタン・トースト ── */
+  .detail .share{position:absolute;top:16px;right:52px;font-family:inherit;font-size:12px;color:var(--ink-dim);
+    background:#14203a;border:1px solid var(--line);border-radius:8px;padding:5px 11px;cursor:pointer;transition:.15s}
+  .detail .share:hover{border-color:var(--indigo,#5b7cc9);color:var(--ink)}
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);z-index:200;
+    background:#101a30f2;border:1px solid var(--gold,#d9b46a);color:var(--ink);font-size:13px;letter-spacing:.03em;
+    padding:10px 18px;border-radius:10px;box-shadow:0 12px 40px #000a;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body>
@@ -481,6 +504,12 @@
           <button id="czReset" title="全体表示">⟳</button>
         </div>
         <div class="cz-hint" id="czHint">星にふれると曲名 ／ 拡大すると全曲名が浮かぶ</div>
+        <div class="link-ctrl" role="group" aria-label="星座線">
+          <span class="lc-label">線で結ぶ</span>
+          <button data-lm="none" class="on">なし</button>
+          <button data-lm="author">作者</button>
+          <button data-lm="place">聖地</button>
+        </div>
       </div>
       <div class="legend">
         <span><i style="background:var(--spring)"></i>春</span>
@@ -565,6 +594,7 @@
 <div class="scrim" id="scrim">
   <div class="detail" id="detail"></div>
 </div>
+<div class="toast" id="toast"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -1626,6 +1656,50 @@ cosmos.addEventListener('pointerup',czEnd);
 cosmos.addEventListener('pointercancel',czEnd);
 cosmos.addEventListener('lostpointercapture',czEnd);
 
+// ── 星座線（同じ作者・同じ聖地の曲を線で結ぶ） ──
+const SVGNS='http://www.w3.org/2000/svg';
+let linkLayer=null, linkMode='none';
+function songXY(s){return [5+s.axes.t*90, 7+(1-s.axes.e)*84];}
+function ensureLinkLayer(){
+  if(linkLayer)return;
+  linkLayer=document.createElementNS(SVGNS,'svg');
+  linkLayer.id='linkLayer';
+  linkLayer.setAttribute('viewBox','0 0 100 100');
+  linkLayer.setAttribute('preserveAspectRatio','none');
+  cosmosInner.insertBefore(linkLayer,cosmosInner.firstChild);
+}
+function lkLine(a,b){
+  const l=document.createElementNS(SVGNS,'line');
+  l.setAttribute('x1',a[0]);l.setAttribute('y1',a[1]);l.setAttribute('x2',b[0]);l.setAttribute('y2',b[1]);
+  l.setAttribute('vector-effect','non-scaling-stroke');
+  linkLayer.appendChild(l);
+}
+function drawLinks(){
+  ensureLinkLayer(); linkLayer.innerHTML='';
+  if(linkMode==='none'){ cosmos.classList.remove('linking'); $$('.star').forEach(st=>st.classList.remove('unlinked')); return; }
+  cosmos.classList.add('linking');
+  let groups=[];
+  if(linkMode==='author'){
+    const authors=(MOTIF_GROUPS.find(g=>g[0]==='人物・原作')||[0,[]])[1];
+    authors.forEach(a=>{ const g=SONGS.filter(s=>s.motifs.includes(a)); if(g.length>=2)groups.push(g); });
+  }else if(linkMode==='place'){
+    Object.keys(PLACES).forEach(ref=>{ const g=SONGS.filter(s=>s.places&&s.places.some(p=>p.ref===ref)); if(g.length>=2)groups.push(g); });
+  }
+  const connected=new Set();
+  groups.forEach(g=>{
+    g.forEach(s=>connected.add(s.id));
+    const pts=g.map(songXY);
+    if(pts.length<=5){ for(let i=0;i<pts.length;i++)for(let j=i+1;j<pts.length;j++)lkLine(pts[i],pts[j]); }
+    else{ const ord=pts.slice().sort((a,b)=>a[0]-b[0]); for(let i=0;i<ord.length-1;i++)lkLine(ord[i],ord[i+1]); }
+  });
+  $$('.star').forEach(st=>st.classList.toggle('unlinked',!connected.has(st.dataset.id)));
+}
+$$('.link-ctrl button').forEach(b=>b.onclick=()=>{
+  linkMode=b.dataset.lm;
+  $$('.link-ctrl button').forEach(x=>x.classList.toggle('on',x===b));
+  drawLinks();
+});
+
 function buildFilters(host){
   host.innerHTML='';
   const all=document.createElement('button');
@@ -1789,8 +1863,29 @@ function saveReading(id){
   const s=document.getElementById('myReadSaved'); if(s){s.classList.add('on');setTimeout(()=>s.classList.remove('on'),1800);}
 }
 function escapeHtml(t){return (t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+// ── トースト ──
+let toastTimer=null;
+function toast(msg){
+  const t=$('#toast'); if(!t)return; t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),1900);
+}
+// ── 曲への直リンク・共有 ──
+function songUrl(id){ return location.origin+location.pathname+'#song='+id; }
+function shareSong(id){
+  const url=songUrl(id), done=()=>toast('この曲へのリンクをコピーしました');
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(done,()=>fallbackCopy(url,done)); }
+  else fallbackCopy(url,done);
+}
+function fallbackCopy(text,cb){
+  const ta=document.createElement('textarea'); ta.value=text; ta.style.cssText='position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  try{ document.execCommand('copy'); cb&&cb(); }catch(_){ toast('コピーできませんでした'); }
+  document.body.removeChild(ta);
+}
+
 function openDetail(id){
   const s=SONGS.find(x=>x.id===id);
+  if(!s)return;
   const hero=SEASON[s.season];
   const SEASON_JP={spring:'春',summer:'夏',autumn:'秋',winter:'冬・季を超えて'};
   const lyricUrl='https://www.uta-net.com/search/?target=title&type=in&sort=&keyword='+encodeURIComponent(s.title);
@@ -1837,6 +1932,7 @@ function openDetail(id){
 
   $('#detail').innerHTML=`
     <div class="hero" style="--hero:${hero}33">
+      <button class="share" onclick="shareSong('${s.id}')" title="この曲へのリンクをコピー">🔗 共有</button>
       <button class="close" onclick="closeDetail()">×</button>
       <div class="yr">${SEASON_JP[s.season]}</div>
       <h2>${s.title}</h2><div class="rd">${s.reading}</div>
@@ -1870,8 +1966,10 @@ function openDetail(id){
     </div>`;
   scrim.classList.add('open');
   document.body.style.overflow='hidden';
+  try{history.replaceState(null,'','#song='+s.id);}catch(_){}
 }
-function closeDetail(){scrim.classList.remove('open');document.body.style.overflow='';}
+function closeDetail(){scrim.classList.remove('open');document.body.style.overflow='';
+  try{history.replaceState(null,'',location.pathname+location.search);}catch(_){}}
 scrim.onclick=e=>{if(e.target===scrim)closeDetail();};
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
 
@@ -2181,6 +2279,19 @@ function jumpAlbum(id){
 // init（地図読み込み失敗が他描画を巻き添えにしないよう分離）
 syncFilters(); renderGrid(); renderStory(); renderTimeline();
 try{ initMap(); }catch(e){ console.warn('map init failed:',e); }
+
+// 起動時の直リンク（#song=id）で該当曲を開く／ブラウザ操作にも追従
+function openFromHash(){
+  const m=(location.hash||'').match(/song=([\w-]+)/);
+  if(m){ const s=SONGS.find(x=>x.id===m[1]); if(s) openDetail(s.id); }
+}
+openFromHash();
+window.addEventListener('hashchange',()=>{
+  const open=$('#scrim').classList.contains('open');
+  const m=(location.hash||'').match(/song=([\w-]+)/);
+  if(!m){ if(open) closeDetail(); }
+  else { const s=SONGS.find(x=>x.id===m[1]); if(s) openDetail(s.id); }
+});
 </script>
 </body>
 </html>
