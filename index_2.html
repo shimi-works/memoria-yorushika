@@ -1,0 +1,1918 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+<title>Memoria ── ヨルシカ世界観マップ</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+  :root{
+    --bg:#0c1120; --bg2:#111a30; --ink:#e7ecf6; --ink-dim:#9aa6c4;
+    --line:#243350; --indigo:#5b7cc9; --indigo-bright:#7ea1e6;
+    --spring:#e79bb6; --summer:#4fc7c2; --autumn:#d9a05b; --winter:#9fb8e6;
+    --gold:#d9b46a; --panel:#0f1830ee;
+    --off:#c98b6b; /* 公式 */ --strong:#7fae7a; /* 有力考察 */ --user:#8a86c9; /* ユーザー */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 78% -8%, #1a2b4a 0, transparent 60%),
+      radial-gradient(900px 600px at 8% 108%, #16233f 0, transparent 55%),
+      linear-gradient(180deg,#0b0f1c,#0c1120 40%,#0a0e1a);
+    color:var(--ink);
+    font-family:"Shippori Mincho","Yu Mincho","游明朝",YuMincho,"Hiragino Mincho ProN",serif;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:var(--indigo-bright);text-decoration:none}
+  a:hover{text-decoration:underline}
+
+  /* ── rain texture ── */
+  .rain{position:fixed;inset:0;pointer-events:none;opacity:.12;z-index:0;
+    background-image:repeating-linear-gradient(102deg,transparent 0 6px,#8fb0ff22 6px 7px);
+    animation:rain 5s linear infinite}
+  @keyframes rain{to{background-position:200px 600px}}
+
+  header{position:relative;z-index:2;padding:34px 20px 10px;text-align:center}
+  header h1{margin:0;font-size:clamp(26px,5.4vw,44px);letter-spacing:.14em;font-weight:600}
+  header h1 .sub{color:var(--gold)}
+  header p.tag{margin:.5em auto 0;max-width:640px;color:var(--ink-dim);font-size:14px;line-height:1.9;letter-spacing:.04em}
+  header .rule{width:64px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent);margin:18px auto 0}
+
+  nav.tabs{position:sticky;top:0;z-index:20;display:flex;justify-content:center;gap:6px;
+    padding:12px;background:linear-gradient(180deg,#0b0f1cf2,#0b0f1cc0 70%,transparent);
+    backdrop-filter:blur(4px);flex-wrap:wrap}
+  nav.tabs button{font-family:inherit;font-size:14px;letter-spacing:.12em;color:var(--ink-dim);
+    background:transparent;border:1px solid transparent;border-radius:999px;padding:9px 18px;cursor:pointer;transition:.2s}
+  nav.tabs button:hover{color:var(--ink)}
+  nav.tabs button.active{color:var(--ink);border-color:var(--line);background:#14203a}
+
+  main{position:relative;z-index:2;max-width:1120px;margin:0 auto;padding:8px 16px 80px}
+  .view{display:none;animation:fade .4s ease}
+  .view.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+
+  .lead{color:var(--ink-dim);font-size:13.5px;line-height:1.9;letter-spacing:.03em;max-width:720px;margin:6px auto 20px;text-align:center}
+
+  /* ── filters ── */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 auto 20px;max-width:840px}
+  .chip{font-family:inherit;font-size:12.5px;letter-spacing:.06em;color:var(--ink-dim);
+    border:1px solid var(--line);background:#101a30;border-radius:999px;padding:6px 13px;cursor:pointer;transition:.15s}
+  .chip:hover{color:var(--ink);border-color:var(--indigo)}
+  .chip.on{color:#0b0f1c;background:var(--gold);border-color:var(--gold);font-weight:600}
+
+  /* ── constellation / world map ── */
+  .cosmos-wrap{position:relative}
+  .cosmos{position:relative;width:100%;aspect-ratio:16/10;min-height:340px;border:1px solid var(--line);
+    border-radius:16px;background:
+      radial-gradient(60% 80% at 85% 12%,#20335c55,transparent 70%),
+      radial-gradient(50% 60% at 12% 88%,#3a2b4a44,transparent 70%),
+      linear-gradient(180deg,#0e1830,#0b1424);overflow:hidden;
+    user-select:none;-webkit-user-select:none;-moz-user-select:none;touch-action:none}
+  .axis-lbl{position:absolute;color:#7f8db0;font-size:11px;letter-spacing:.18em;pointer-events:none;z-index:1}
+  .axis-lbl.top{top:8px;left:50%;transform:translateX(-50%)}
+  .axis-lbl.bottom{bottom:8px;left:50%;transform:translateX(-50%)}
+  .axis-lbl.left{left:10px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl}
+  .axis-lbl.right{right:10px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl}
+  .gridline{position:absolute;background:#ffffff0d}
+  .gridline.h{left:0;right:0;height:1px}
+  .gridline.v{top:0;bottom:0;width:1px}
+  .star{position:absolute;transform:translate(-50%,-50%);cursor:pointer;z-index:2;transition:.25s}
+  .star .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 4px #ffffff10,0 0 16px 2px currentColor;
+    background:currentColor;margin:0 auto;transition:.2s}
+  .star .nm{margin-top:5px;font-size:11.5px;color:#cfd8ee;white-space:nowrap;letter-spacing:.04em;text-shadow:0 1px 4px #000a;
+    opacity:0;transition:opacity .2s;pointer-events:none}
+  .star:hover{z-index:6}
+  .star:hover .dot{transform:scale(1.6)}
+  .star:hover .nm{opacity:1}
+  .cosmos.show-labels .star .nm{opacity:.9;font-size:9px}
+  .star.dim{opacity:.14;filter:saturate(.3)}
+  .star.dim .nm{opacity:0!important}
+  .star .dot{width:11px;height:11px}
+
+  #cosmosInner{position:absolute;inset:0;transform-origin:0 0;z-index:2}
+  .cosmos.zoomed{cursor:grab}
+  .cosmos.zoomed:active{cursor:grabbing}
+  .cz-ctrl{position:absolute;right:10px;bottom:10px;z-index:8;display:flex;flex-direction:column;gap:6px}
+  .cz-ctrl button{width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:#101a30d0;
+    color:var(--ink);font-size:16px;font-family:inherit;cursor:pointer;line-height:1;backdrop-filter:blur(3px)}
+  .cz-ctrl button:hover{border-color:var(--gold);color:var(--gold)}
+  .cz-hint{position:absolute;left:12px;bottom:12px;z-index:7;font-size:10.5px;letter-spacing:.08em;color:#8a93b0;
+    pointer-events:none;transition:opacity .3s;text-shadow:0 1px 4px #000}
+
+  .member{border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:10px;padding:12px 15px;background:#0e1626;font-size:13px;line-height:1.9}
+  .member .mn{font-size:16px;color:var(--gold);margin-bottom:5px}
+  .member .mn span{font-size:11px;color:var(--ink-dim);letter-spacing:.08em;margin-left:8px}
+
+  /* ── song grid ── */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+  .card{position:relative;border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;
+    background:linear-gradient(180deg,#111c34,#0d1626);cursor:pointer;transition:.2s;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sc,var(--indigo))}
+  .card:hover{transform:translateY(-3px);border-color:var(--indigo)}
+  .card .yr{font-size:11px;color:var(--ink-dim);letter-spacing:.14em}
+  .card h3{margin:3px 0 2px;font-size:19px;letter-spacing:.04em;font-weight:600}
+  .card .rd{font-size:11px;color:var(--ink-dim);letter-spacing:.1em}
+  .card .al{margin-top:8px;font-size:11.5px;color:var(--gold);letter-spacing:.05em}
+  .card .mt{margin-top:9px;display:flex;flex-wrap:wrap;gap:5px}
+  .card .mt span{font-size:10.5px;color:#b9c3dd;border:1px solid var(--line);border-radius:6px;padding:2px 7px}
+  .card .flags{position:absolute;top:12px;right:12px;display:flex;gap:5px}
+  .card .flags i{font-style:normal;font-size:9px;letter-spacing:.08em;border-radius:5px;padding:2px 6px;line-height:1.4}
+  .badge-work{background:#3a281f;color:var(--off);border:1px solid #6a4a37}
+  .badge-place{background:#1f2f2a;color:var(--strong);border:1px solid #3a5a4c}
+
+  /* ── map ── */
+  #map{height:520px;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  .map-note{font-size:12px;color:var(--ink-dim);text-align:center;margin:12px auto 0;max-width:720px;line-height:1.8}
+  /* ズームボタンを世界観マップのコントロールに合わせる（暗色・右下・金ホバー） */
+  .leaflet-control-zoom{border:none!important;box-shadow:none!important;margin:0 10px 10px 0!important}
+  .leaflet-control-zoom a{width:32px!important;height:32px!important;line-height:30px!important;font-size:18px!important;
+    background:#101a30d0!important;color:var(--ink)!important;border:1px solid var(--line)!important;
+    border-radius:8px!important;margin-bottom:6px!important;backdrop-filter:blur(3px)}
+  .leaflet-control-zoom a:hover{border-color:var(--gold)!important;color:var(--gold)!important;background:#14203a!important}
+  .leaflet-popup-content-wrapper{background:#111c34;color:var(--ink);border:1px solid var(--line);border-radius:12px}
+  .leaflet-popup-tip{background:#111c34}
+  .leaflet-popup-content{font-family:inherit;margin:12px 14px}
+  .pop h4{margin:0 0 4px;font-size:16px}
+  .pop .pc{font-size:11px;letter-spacing:.06em;padding:1px 7px;border-radius:5px;display:inline-block}
+  .pop .songs{margin-top:8px;font-size:12.5px;line-height:1.9}
+  .pop .songs a{display:inline-block;margin-right:8px}
+  .pop .nt{margin-top:6px;font-size:12px;color:var(--ink-dim);line-height:1.8}
+
+  /* ── detail modal ── */
+  .scrim{position:fixed;inset:0;z-index:60;background:#05070ecc;backdrop-filter:blur(3px);
+    display:none;align-items:flex-start;justify-content:center;padding:40px 14px;overflow-y:auto}
+  .scrim.open{display:flex}
+  .detail{width:min(720px,100%);border:1px solid var(--line);border-radius:18px;
+    background:linear-gradient(180deg,#101a30,#0c1424);box-shadow:0 30px 80px #000a;animation:pop .3s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1}}
+  .detail .hero{position:relative;padding:26px 26px 20px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--hero,#16264a),transparent)}
+  .detail .close{position:absolute;top:16px;right:18px;font-size:22px;color:var(--ink-dim);cursor:pointer;background:none;border:none}
+  .detail .close:hover{color:var(--ink)}
+  .detail .yr{font-size:12px;color:var(--ink-dim);letter-spacing:.16em}
+  .detail h2{margin:4px 0 2px;font-size:30px;letter-spacing:.05em;font-weight:600}
+  .detail .rd{font-size:12px;color:var(--ink-dim);letter-spacing:.14em}
+  .detail .meta{margin-top:12px;display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:#c3cde4}
+  .detail .meta b{color:var(--gold);font-weight:400}
+  .detail .body{padding:20px 26px 28px}
+  .sec{margin-top:20px}
+  .sec:first-child{margin-top:0}
+  .sec h4{margin:0 0 10px;font-size:13px;letter-spacing:.2em;color:var(--ink-dim);font-weight:600;
+    display:flex;align-items:center;gap:10px}
+  .sec h4::after{content:"";flex:1;height:1px;background:var(--line)}
+  .mtlist{display:flex;flex-wrap:wrap;gap:6px}
+  .mtlist span{font-size:12px;color:#c8d2ea;border:1px solid var(--line);border-radius:7px;padding:3px 10px;background:#0e1830}
+
+  .work{border:1px solid var(--line);border-left:3px solid var(--off);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1626}
+  .work .wt{font-size:15px;font-weight:600}
+  .work .wa{font-size:12px;color:var(--ink-dim);margin-top:2px}
+  .work .wn{font-size:12.5px;color:#c3cde4;margin-top:7px;line-height:1.85}
+
+  .conf{font-size:10px;letter-spacing:.1em;border-radius:5px;padding:2px 7px;margin-left:2px}
+  .conf.koushiki{background:#3a281f;color:var(--off);border:1px solid #6a4a37}
+  .conf.yuuryoku{background:#1f2f2a;color:var(--strong);border:1px solid #3a5a4c}
+  .conf.user{background:#211f38;color:var(--user);border:1px solid #403c66}
+
+  .layer{border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:13px;line-height:1.9}
+  .layer.koushiki{background:#170f0a;border:1px solid #4a3527}
+  .layer.yuuryoku{background:#0d1512;border:1px solid #2c4438}
+  .layer.user{background:#0f0e1a;border:1px solid #2c2947}
+  .layer .lh{font-size:11px;letter-spacing:.14em;margin-bottom:6px;font-weight:600}
+  .layer.koushiki .lh{color:var(--off)} .layer.yuuryoku .lh{color:var(--strong)} .layer.user .lh{color:var(--user)}
+  .layer ul{margin:0;padding-left:18px} .layer li{margin:4px 0;color:#c8d2ea}
+
+  .placebox{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#0e1626;
+    display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .placebox .pn{font-size:14px}
+  .placebox .pd{font-size:11.5px;color:var(--ink-dim);margin-top:3px;line-height:1.7}
+  .placebox button{font-family:inherit;font-size:11.5px;white-space:nowrap;color:var(--ink);background:#14203a;
+    border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer}
+  .placebox button:hover{border-color:var(--indigo)}
+
+  .extlink{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid var(--line);
+    border-radius:8px;padding:7px 12px;background:#101a30}
+  .extlink:hover{border-color:var(--indigo);text-decoration:none}
+
+  footer{position:relative;z-index:2;text-align:center;color:#6b7690;font-size:11px;letter-spacing:.06em;
+    padding:20px 16px 40px;line-height:1.9}
+  .disclaimer{max-width:760px;margin:0 auto 10px;color:#6b7690;font-size:11px;line-height:1.9}
+
+  @media(max-width:560px){
+    .detail .body,.detail .hero{padding-left:18px;padding-right:18px}
+    #map{height:420px}
+    .cosmos .nm{display:none}
+  }
+  .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:14px auto 0;font-size:11.5px;color:var(--ink-dim)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+  /* ═══ 文学的トーンの追補（夜の雰囲気は維持） ═══ */
+  /* 和紙のような微かな紙目と、墨のにじみ。夜の藍の上に古書の質感を重ねる */
+  body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.5;
+    background:
+      radial-gradient(circle at 20% 30%,#ffffff05 0,transparent 40%),
+      radial-gradient(circle at 80% 70%,#ffe9c805 0,transparent 45%),
+      repeating-linear-gradient(0deg,#ffffff04 0 1px,transparent 1px 3px);
+    mix-blend-mode:screen}
+  body::after{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;
+    box-shadow:inset 0 0 240px 40px #05070e;} /* 四隅を沈めるヴィネット＝古書の陰影 */
+
+  /* タイトル：箔押し風の金と、明朝の抑揚 */
+  header h1 .sub{font-weight:600;letter-spacing:.22em;
+    background:linear-gradient(180deg,#f0d69a,#c9a24e 60%,#a9843a);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    text-shadow:0 1px 0 #00000060}
+  header p.tag{font-style:normal}
+  header p.tag::before,header p.tag::after{content:"—— ";color:var(--gold);opacity:.6}
+  header p.tag::after{content:" ——"}
+
+  /* 雨は細く静かに。文学的に主張を抑える */
+  .rain{opacity:.07;background-image:repeating-linear-gradient(101deg,transparent 0 9px,#8fb0ff18 9px 10px)}
+
+  /* 章題（sec h4）に小さな菱形の版飾り */
+  .sec h4::before{content:"◆";flex:none;color:var(--gold);opacity:.7;font-size:9px;margin-right:2px}
+
+  /* タブを版面の柱のように */
+  nav.tabs button{font-feature-settings:"palt"}
+
+  /* カード：短冊・原稿用紙の趣。タイトルは明朝の縦の伸び */
+  .card h3{font-weight:600;letter-spacing:.06em}
+  .card{background:
+    linear-gradient(180deg,#121d36,#0d1626),
+    repeating-linear-gradient(0deg,#ffffff03 0 1px,transparent 1px 26px)}
+  .card .tie{margin-top:8px;font-size:10.5px;color:var(--strong);letter-spacing:.04em;line-height:1.5}
+
+  /* 詳細：本文を古書の一頁のように。見出しの初字を大きく */
+  .detail{background:
+    linear-gradient(180deg,#111a30,#0c1424),
+    repeating-linear-gradient(0deg,#ffffff03 0 1px,transparent 1px 30px)}
+  .detail h2{font-weight:600;letter-spacing:.06em;
+    background:linear-gradient(180deg,#eef2fb,#c3cde4);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .detail .body{font-feature-settings:"palt";line-height:1.9}
+  .tieup-hero{margin-top:10px;font-size:12px;color:var(--strong);letter-spacing:.05em}
+  .work .wn{text-indent:1em} /* 段落の一字下げ＝縦書き文化の名残 */
+  .layer li{text-indent:.2em}
+
+  /* 引用ブロックに鉤括弧の気配 */
+  .work{position:relative}
+  .work::before{content:"”";position:absolute;right:10px;top:2px;font-size:28px;color:#ffffff0f;font-family:Georgia,serif}
+
+  /* ═══ 歩み（年表） ═══ */
+  .tl-legend{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:0 auto 22px;font-size:11.5px;color:var(--ink-dim)}
+  .tl-legend span{display:inline-flex;align-items:center;gap:6px}
+  .tl-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .timeline{position:relative;max-width:720px;margin:0 auto;padding-left:8px}
+  .timeline::before{content:"";position:absolute;left:9px;top:8px;bottom:8px;width:1px;
+    background:linear-gradient(180deg,transparent,var(--line) 6%,var(--line) 94%,transparent)}
+  .tl-year{position:relative;margin:26px 0 12px -8px;font-size:34px;font-weight:600;letter-spacing:.1em;
+    color:transparent;background:linear-gradient(180deg,#e9edf7,#8b98ba);-webkit-background-clip:text;background-clip:text;
+    padding-left:34px;opacity:.9}
+  .tl-year:first-child{margin-top:4px}
+  .tl-row{position:relative;padding-left:34px;margin:0 0 12px}
+  .tl-dot{position:absolute;left:3px;top:16px;width:13px;height:13px;border-radius:50%;
+    background:var(--tc);box-shadow:0 0 0 4px #0c1120,0 0 12px 1px var(--tc);z-index:1}
+  .tl-card{border:1px solid var(--line);border-left:3px solid var(--tc);border-radius:11px;
+    padding:12px 15px;background:linear-gradient(180deg,#111c34,#0d1626);transition:.18s}
+  .tl-card:hover{transform:translateX(3px);border-color:var(--tc)}
+  .tl-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tl-date{font-size:11.5px;color:var(--ink-dim);letter-spacing:.08em}
+  .tl-tag{font-size:10px;letter-spacing:.08em;border:1px solid;border-radius:6px;padding:1px 8px}
+  .tl-title{font-size:17px;font-weight:600;letter-spacing:.03em;margin:5px 0 3px}
+  .tl-note{font-size:12.5px;color:#c3cde4;line-height:1.85;text-indent:1em}
+  @media(max-width:560px){.tl-year{font-size:28px}}
+
+  /* 新潮文庫バッジ／Re-Recording */
+  .badge-shincho{background:#2a2233;color:#d9b46a;border:1px solid #5a4a37}
+  .rerecmark{font-size:9px;letter-spacing:.08em;color:var(--strong);border:1px solid #3a5a4c;border-radius:5px;padding:1px 5px;margin-left:6px;vertical-align:middle}
+  .rerecbox{border:1px solid #2c4438;border-radius:10px;padding:12px 14px;background:#0d1512}
+  .rerecbox .rb-albums{font-size:13px;color:#c8d2ea}
+  .rerecbox .rb-albums b{color:var(--gold);font-weight:400}
+  .rerecbox .rb-note{font-size:12.5px;color:var(--ink-dim);margin-top:6px;line-height:1.85;text-indent:1em}
+  .shinchobox{border:1px solid #5a4a37;border-radius:10px;padding:12px 14px;background:#170f0a}
+  .shinchobox .sh-t{font-size:14px;color:var(--gold)}
+  .shinchobox .sh-n{font-size:12px;color:var(--ink-dim);margin-top:6px;line-height:1.8;text-indent:1em}
+
+  /* ═══ 起動演出（夜が明けるように立ち上がる） ═══ */
+  @keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+  @keyframes ruleGrow{from{width:0;opacity:0}to{width:64px;opacity:1}}
+  @keyframes starLight{0%{opacity:0;transform:translate(-50%,-50%) scale(.2)}60%{opacity:1}100%{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+  @keyframes veil{from{opacity:1}to{opacity:0;visibility:hidden}}
+
+  /* 開幕の帳（とばり）：暗転から、大きな箔押しの題字が立ち上がる */
+  @keyframes sealIn{0%{opacity:0;transform:scale(.72);letter-spacing:.9em;filter:blur(8px)}
+    55%{opacity:1;filter:blur(0)}100%{opacity:1;transform:scale(1);letter-spacing:.22em}}
+  @keyframes sealGlow{0%,100%{text-shadow:0 0 24px #d9b46a22}50%{text-shadow:0 0 44px #d9b46a55,0 0 8px #f0d69a44}}
+  #curtain{position:fixed;inset:0;z-index:9999;background:radial-gradient(circle at 50% 44%,#101832,#05070e 72%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;animation:veil 1.1s ease 2.0s forwards}
+  #curtain .seal{font-family:"Yu Mincho","游明朝",serif;font-weight:600;
+    font-size:clamp(52px,15vw,150px);line-height:1;text-align:center;
+    background:linear-gradient(180deg,#f6e2ad,#d9b46a 55%,#a9843a);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    opacity:0;animation:sealIn 1.2s cubic-bezier(.2,.7,.2,1) .15s forwards, sealGlow 2.4s ease .6s infinite;text-indent:.22em}
+  #curtain .seal small{display:block;text-align:center;font-size:clamp(11px,2.4vw,15px);letter-spacing:.42em;color:#aeb7d4;
+    margin-top:20px;text-indent:.42em;-webkit-text-fill-color:#aeb7d4;opacity:0;animation:riseIn .9s ease 1.0s forwards}
+  #curtain .seal::after{content:"";display:block;width:0;height:1px;margin:22px auto 0;
+    background:linear-gradient(90deg,transparent,#d9b46a,transparent);animation:ruleGrow 1s ease 1.3s forwards}
+
+  .intro-header h1{opacity:0;animation:riseIn 1s ease 1.9s forwards}
+  .intro-header p.tag{opacity:0;animation:riseIn 1s ease 2.15s forwards}
+  .intro-header .rule{animation:ruleGrow 1s ease 2.4s backwards}
+  nav.tabs{opacity:0;animation:riseIn .8s ease 2.5s forwards}
+  #view-cosmos.first .lead,#view-cosmos.first .filters,#view-cosmos.first .cosmos{opacity:0;animation:riseIn .9s ease 2.5s forwards}
+  /* 星は時間差で灯る＝星座が浮かび上がる */
+  .cosmos.igniting .star{opacity:0;animation:starLight .7s ease forwards}
+  @media(prefers-reduced-motion:reduce){
+    #curtain,#curtain .seal,.intro-header h1,.intro-header p.tag,.intro-header .rule,nav.tabs,
+    #view-cosmos.first .lead,#view-cosmos.first .filters,#view-cosmos.first .cosmos,.cosmos.igniting .star{animation:none!important;opacity:1!important}
+    #curtain{display:none}
+  }
+
+  /* ═══ 検索バー ═══ */
+  .searchwrap{display:flex;justify-content:center;margin:0 auto 16px;max-width:520px}
+  .searchbox{position:relative;width:100%}
+  .searchbox input{width:100%;font-family:inherit;font-size:14px;letter-spacing:.04em;color:var(--ink);
+    background:#101a30;border:1px solid var(--line);border-radius:999px;padding:11px 40px 11px 42px;outline:none;transition:.2s}
+  .searchbox input:focus{border-color:var(--gold);background:#12203c}
+  .searchbox input::placeholder{color:#6b7690}
+  .searchbox .si{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#6b7690;font-size:14px;pointer-events:none}
+  .searchbox .sx{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:#6b7690;font-size:18px;
+    cursor:pointer;background:none;border:none;line-height:1;display:none}
+  .searchbox .sx:hover{color:var(--ink)}
+  .searchbox.has input{border-color:var(--indigo)}
+  .searchbox.has .sx{display:block}
+  .searchcount{text-align:center;font-size:11.5px;color:var(--ink-dim);letter-spacing:.06em;margin:-8px auto 14px}
+  .noresult{text-align:center;color:var(--ink-dim);font-size:13px;padding:40px 10px;line-height:1.9}
+
+  /* ═══ 関連する楽曲 ═══ */
+  .related{display:flex;flex-wrap:wrap;gap:8px}
+  .relcard{display:flex;flex-direction:column;gap:2px;border:1px solid var(--line);border-left:3px solid var(--rc,var(--indigo));
+    border-radius:9px;padding:8px 12px;background:#0e1626;cursor:pointer;transition:.15s;min-width:132px;flex:1 1 auto;max-width:220px}
+  .relcard:hover{transform:translateY(-2px);border-color:var(--rc,var(--indigo));background:#122038}
+  .relcard .rt{font-size:13.5px;color:var(--ink);letter-spacing:.03em}
+  .relcard .rr{font-size:10.5px;color:var(--strong);letter-spacing:.04em;line-height:1.5}
+  .relcard .rl{font-size:10px;color:var(--ink-dim);letter-spacing:.05em;margin-top:1px}
+
+  /* ═══ ユーザーの読み（書き込み） ═══ */
+  .myread{border:1px dashed #3f3a66;border-radius:10px;padding:12px 14px;background:#0f0e1a}
+  .myread textarea{width:100%;min-height:74px;resize:vertical;font-family:inherit;font-size:13px;line-height:1.85;
+    color:var(--ink);background:#0b0a16;border:1px solid #2c2947;border-radius:8px;padding:10px 12px;outline:none;letter-spacing:.02em}
+  .myread textarea:focus{border-color:var(--user)}
+  .myread textarea::placeholder{color:#5b5880}
+  .myread .mr-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:8px}
+  .myread .mr-note{font-size:11px;color:#6b7690;letter-spacing:.03em}
+  .myread .mr-save{font-family:inherit;font-size:12px;color:#0b0f1c;background:var(--user);border:none;border-radius:7px;
+    padding:6px 14px;cursor:pointer;letter-spacing:.06em;font-weight:600;transition:.15s}
+  .myread .mr-save:hover{filter:brightness(1.12)}
+  .myread .mr-saved{color:var(--strong);font-size:11.5px;opacity:0;transition:.3s}
+  .myread .mr-saved.on{opacity:1}
+
+  /* ═══ アトラスの信頼度フィルタ ═══ */
+  .atlas-filters{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:0 auto 14px}
+
+  /* ═══ 物語（アルバム章立て） ═══ */
+  .story-nav{display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin:0 auto 26px;max-width:900px}
+  .story-nav button{font-family:inherit;font-size:12px;letter-spacing:.05em;color:var(--ink-dim);
+    background:#101a30;border:1px solid var(--line);border-left:3px solid var(--ac,var(--indigo));
+    border-radius:8px;padding:6px 12px;cursor:pointer;transition:.15s}
+  .story-nav button:hover{color:var(--ink);border-color:var(--ac,var(--indigo));transform:translateY(-2px)}
+  .storylist{max-width:820px;margin:0 auto}
+  .chapter{position:relative;border:1px solid var(--line);border-radius:16px;margin-bottom:26px;overflow:hidden;
+    background:linear-gradient(180deg,#111a30,#0c1424),repeating-linear-gradient(0deg,#ffffff03 0 1px,transparent 1px 30px)}
+  .chapter::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--ac,var(--indigo))}
+  .ch-head{padding:22px 26px 18px;border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,var(--acf,#16264a55),transparent)}
+  .ch-idx{font-size:11px;letter-spacing:.24em;color:var(--ac,var(--indigo-bright));text-transform:uppercase}
+  .ch-title{font-size:27px;font-weight:600;letter-spacing:.05em;margin:5px 0 3px;
+    background:linear-gradient(180deg,#eef2fb,#c3cde4);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .ch-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:12px;color:#9aa6c4;letter-spacing:.05em;margin-top:8px}
+  .ch-meta b{color:var(--gold);font-weight:400}
+  .ch-tagline{margin-top:12px;font-size:14px;line-height:1.9;color:var(--gold);letter-spacing:.04em;font-style:italic}
+  .ch-body{padding:20px 26px 24px}
+  .ch-body p{margin:0 0 13px;font-size:13.5px;line-height:2;color:#cdd6ec;text-indent:1em;letter-spacing:.02em}
+  .ch-body p:last-child{margin-bottom:0}
+  .ch-sec{margin-top:20px}
+  .ch-sec h5{margin:0 0 10px;font-size:11.5px;letter-spacing:.2em;color:var(--ink-dim);font-weight:600;display:flex;align-items:center;gap:9px}
+  .ch-sec h5::before{content:"◆";color:var(--ac,var(--gold));opacity:.7;font-size:8px}
+  .ch-sec h5::after{content:"";flex:1;height:1px;background:var(--line)}
+  .ch-themes{display:flex;flex-wrap:wrap;gap:6px}
+  .ch-themes span{font-size:11.5px;color:#c8d2ea;border:1px solid var(--line);border-radius:7px;padding:3px 10px;background:#0e1830}
+  .ch-tracks{display:flex;flex-wrap:wrap;gap:6px}
+  .trk{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:#c8d2ea;border:1px solid var(--line);
+    border-radius:8px;padding:5px 11px;background:#0e1626;cursor:pointer;transition:.15s}
+  .trk:hover{border-color:var(--ac,var(--indigo));color:var(--ink);background:#122038;transform:translateY(-2px)}
+  .trk .tn{font-size:10px;color:var(--ink-dim);min-width:16px;text-align:right}
+  .trk i{font-style:normal;font-size:9px;color:var(--strong)}
+  .trk.inst{opacity:.62}
+  .ch-note{margin-top:16px;font-size:11.5px;color:#6b7690;line-height:1.8;border-top:1px dashed var(--line);padding-top:12px}
+  .ch-conf{font-size:9.5px;letter-spacing:.08em;border-radius:5px;padding:1px 6px;vertical-align:middle}
+  /* 二部作の連結 */
+  .twin-link{display:flex;align-items:center;justify-content:center;gap:10px;margin:-10px auto 26px;max-width:820px;
+    font-size:11.5px;letter-spacing:.1em;color:var(--summer)}
+  .twin-link::before,.twin-link::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,#4fc7c255,transparent)}
+  /* 書簡の時系列 */
+  .flow-intro{font-size:12.5px;color:var(--ink-dim);line-height:1.9;margin-bottom:15px;letter-spacing:.02em}
+  .flow{position:relative;padding-left:6px}
+  .flow::before{content:"";position:absolute;left:9px;top:6px;bottom:6px;width:1px;background:linear-gradient(180deg,transparent,var(--line) 8%,var(--line) 92%,transparent)}
+  .flow-step{position:relative;padding-left:30px;margin-bottom:15px}
+  .flow-step:last-child{margin-bottom:0}
+  .flow-dot{position:absolute;left:4px;top:5px;width:11px;height:11px;border-radius:50%;background:var(--ac,var(--indigo));box-shadow:0 0 0 4px #0c1120,0 0 10px 1px var(--ac,var(--indigo))}
+  .flow-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .flow-t{font-size:14.5px;color:var(--ink);font-weight:600;letter-spacing:.03em;cursor:pointer}
+  .flow-t:hover{color:var(--ac,var(--indigo-bright));text-decoration:underline}
+  .flow-season{font-size:10.5px;letter-spacing:.06em;color:var(--summer);border:1px solid #2c4438;border-radius:5px;padding:1px 7px}
+  .flow-note{font-size:12.5px;color:#c3cde4;line-height:1.85;margin-top:4px;text-indent:.4em}
+  .readmark{font-weight:400;letter-spacing:.04em;font-size:10px;color:var(--user);border:1px solid #403c66;border-radius:5px;padding:1px 7px;vertical-align:middle}
+  /* 番外編（n-buna ソロ）の童話トラック */
+  .artist-badge{display:inline-block;font-size:10.5px;letter-spacing:.06em;color:var(--ac,var(--indigo-bright));
+    border:1px solid var(--line);border-radius:6px;padding:2px 9px;margin-top:8px}
+  .trk-static{flex-direction:column;align-items:flex-start;gap:2px;cursor:default;max-width:300px}
+  .trk-static:hover{transform:none;border-color:var(--line);background:#0e1626}
+  .trk-static .tt{display:inline-flex;gap:7px;align-items:center;color:var(--ink)}
+  .trk-motif{font-style:normal;font-size:10.5px;color:var(--strong);letter-spacing:.03em;opacity:.9}
+  .trk-static.inst .trk-motif{color:var(--ink-dim)}
+  @media(max-width:560px){.ch-head,.ch-body{padding-left:18px;padding-right:18px}.ch-title{font-size:22px}}
+</style>
+</head>
+<body>
+<div class="rain"></div>
+
+<div id="curtain"><div class="seal">Memoria<small>ヨルシカ 世界観マップ</small></div></div>
+
+<header class="intro-header">
+  <h1><span class="sub">Memoria</span>　<span style="font-size:.42em;letter-spacing:.3em;color:var(--ink-dim)">ヨルシカ世界観マップ</span></h1>
+  <p class="tag">まとめサイトは「知識」を並べる。ここは、曲を<strong style="color:var(--ink)">空間に配置</strong>して歩く「体験」。<br>雨・夏・夜のモチーフ、原作となった文学、聖地の候補を、ひとつの世界として再構築する。</p>
+  <div class="rule"></div>
+</header>
+
+<nav class="tabs">
+  <button data-view="cosmos" class="active">世界観マップ</button>
+  <button data-view="songs">楽曲</button>
+  <button data-view="story">物語</button>
+  <button data-view="history">歩み</button>
+  <button data-view="atlas">聖地アトラス</button>
+  <button data-view="about">この地図について</button>
+</nav>
+
+<main>
+  <!-- ══ COSMOS ══ -->
+  <section class="view active" id="view-cosmos">
+    <p class="lead">登録された全楽曲を、時間（朝→夜）と感情（静寂→高揚）の座標に置く。色は季節。モチーフで絞り込むと非該当曲が霞む。星をなぞって世界を眺める。</p>
+    <div class="filters" id="cosmosFilters"></div>
+    <div class="cosmos-wrap">
+      <div class="cosmos" id="cosmos">
+        <div class="gridline v" style="left:50%"></div>
+        <div class="gridline h" style="top:50%"></div>
+        <div class="axis-lbl top">高揚・衝動</div>
+        <div class="axis-lbl bottom">静寂・喪失</div>
+        <div class="axis-lbl left">朝・昼</div>
+        <div class="axis-lbl right">夜・月</div>
+        <div id="cosmosInner"></div>
+        <div class="cz-ctrl">
+          <button id="czIn" title="拡大">＋</button>
+          <button id="czOut" title="縮小">－</button>
+          <button id="czReset" title="全体表示">⟳</button>
+        </div>
+        <div class="cz-hint" id="czHint">星にふれると曲名 ／ 拡大すると全曲名が浮かぶ</div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--spring)"></i>春</span>
+        <span><i style="background:var(--summer)"></i>夏</span>
+        <span><i style="background:var(--autumn)"></i>秋</span>
+        <span><i style="background:var(--winter)"></i>冬・季節を超えて</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SONGS ══ -->
+  <section class="view" id="view-songs">
+    <p class="lead">コア楽曲を、アルバムとモチーフで束ねる。カードの印は <i class="conf koushiki" style="margin:0">原作あり</i> <i class="conf yuuryoku" style="margin:0">聖地あり</i>。</p>
+    <div class="searchwrap"><div class="searchbox" id="searchBox">
+      <span class="si">⌕</span>
+      <input id="songSearch" type="search" autocomplete="off" placeholder="曲名・アルバム・モチーフ・原作で検索…">
+      <button class="sx" id="songSearchClear" title="クリア" aria-label="検索をクリア">×</button>
+    </div></div>
+    <div class="searchcount" id="searchCount"></div>
+    <div class="filters" id="songFilters"></div>
+    <div class="grid" id="songGrid"></div>
+  </section>
+
+  <!-- ══ STORY ══ -->
+  <section class="view" id="view-story">
+    <p class="lead">ヨルシカのアルバムは、一曲ずつではなく一冊の物語として読める。各作品のコンセプトと物語構造を、章立てで辿る。収録曲をなぞれば、その曲の詳細がひらく。</p>
+    <p class="lead" style="margin-top:-10px;font-size:12px;color:#6b7690">※ 歌詞は掲載せず、作品のコンセプト・物語・テーマの解説に留めています。物語の解釈には諸説があり、公式の言及と考察を区別して記しています。</p>
+    <div class="story-nav" id="storyNav"></div>
+    <div class="storylist" id="storyList"></div>
+  </section>
+
+  <!-- ══ HISTORY ══ -->
+  <section class="view" id="view-history">
+    <p class="lead">n-bunaのボカロP時代から、ヨルシカの結成、そして現在まで。アルバム・シングル・ライブ・書籍を時系列で辿る。夜が明けていくように、下へ読み進める。</p>
+    <div class="tl-legend" id="tlLegend"></div>
+    <div class="timeline" id="timeline"></div>
+    <p class="map-note">配信・発売日は公式サイト／各リリース情報に基づく（一部は年内リリースの概略）。網羅ではなく主要な出来事を抜粋しています。</p>
+  </section>
+
+  <!-- ══ ATLAS ══ -->
+  <section class="view" id="view-atlas">
+    <p class="lead">曲の情景を、地図の上に置く。原作の舞台、アルバムが辿る旅、ファンが指し示す聖地の候補。ピンを開くと、対応する曲と歌詞・描写がひらく。信頼度で絞り込める。</p>
+    <div class="atlas-filters" id="atlasFilters"></div>
+    <div id="map"></div>
+    <p class="map-note">MV・ジャケット背景の同定など、ファンの聖地巡礼まとめに基づく地点を中心に配置しています。信頼度はピンの色で区別（<span style="color:var(--off)">公式・原作の舞台</span> / <span style="color:var(--strong)">有力な聖地・情景</span> / <span style="color:var(--user)">ファン考察・象徴配置</span>）。日本各地に加え、二部作の舞台スウェーデンも含みます。</p>
+  </section>
+
+  <!-- ══ ABOUT ══ -->
+  <section class="view" id="view-about">
+    <div style="max-width:720px;margin:10px auto;line-height:2;font-size:14px;color:#cdd6ec">
+      <div class="sec"><h4>ヨルシカとは</h4>
+        <strong style="color:var(--ink)">ヨルシカ</strong>は、<strong style="color:var(--gold)">n-buna（ナブナ）</strong>と<strong style="color:var(--gold)">suis（スイ）</strong>による日本の音楽ユニット。2017年、n-bunaが自身のライブにゲストボーカルとして招いたsuisと結成した。バンド名は1stミニアルバム『夏草が邪魔をする』収録曲「雲と幽霊」の歌詞の一節「夜しか（もう眠れずに）」に由来する。2019年にユニバーサル ミュージックよりメジャーデビュー。素顔を明かさない方針で知られ、ライブは逆光の演出で行われる。
+        <div style="margin-top:14px;display:grid;gap:10px">
+          <div class="member"><div class="mn">n-buna <span>作詞・作曲・編曲・ギター</span></div>
+            ボカロP（ボーカロイドプロデューサー）出身。2012年頃からニコニコ動画で楽曲を発表し、「透明エレジー」などで知られた。近代文学・小説・俳句を深く愛し、宮沢賢治・萩原朔太郎・太宰治・ヘミングウェイ・オスカー・ワイルド、俳人の尾崎放哉・正岡子規らを楽曲に引用・オマージュする作家性が最大の特徴。物語を書き下ろしたコンセプトアルバムを多く手がける。</div>
+          <div class="member"><div class="mn">suis <span>ボーカル</span></div>
+            透明感と芯を併せ持つ歌声でヨルシカの世界を体現するボーカリスト。n-bunaは「歌の経験より、その人の持つ本質」を重視して起用したと語る。詳細なプロフィールや素顔は非公開。</div>
+        </div></div>
+      <div class="sec"><h4>コンセプト</h4>
+        情報は本来、あちこちに散らばっている。このアプリはそれを集めるのではなく、<strong style="color:var(--ink)">「曲を中心にした世界観の構造」</strong>として組み直す。量ではなく、構造で見せる。</div>
+      <div class="sec"><h4>3つのレイヤー（信頼性の分離）</h4>
+        考察の信頼度を混ぜないために、常に3層で表示する。
+        <div style="margin-top:12px">
+          <div class="layer koushiki"><div class="lh">公式・タイアップ</div>本人の言及、原作タイトルとの明確な一致、タイアップ作品など。</div>
+          <div class="layer yuuryoku"><div class="lh">有力考察</div>広く共有され、根拠のあるファンの読み。断定はしない。</div>
+          <div class="layer user"><div class="lh">ユーザーの読み</div>個人的な解釈・余白。ここは「正しさ」より「体験」の場所。</div>
+        </div></div>
+      <div class="sec"><h4>設計思想</h4>
+        「全部集める」より「少数を完璧に設計する」。まずはコア楽曲だけを、丁寧に。情報の正確性より、<strong style="color:var(--ink)">構造の見やすさ</strong>を優先している。</div>
+      <div class="sec"><h4>技術</h4>
+        単一HTML・依存なし（地図のみ Leaflet + OpenStreetMap／APIキー不要）。データは下部のJSONを編集するだけで増やせる。モバイル対応・軽量。</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p class="disclaimer">本アプリはヨルシカの楽曲世界を鑑賞・考察するための非公式なファンプロジェクトです。歌詞・楽曲・作品の権利は各権利者に帰属します。歌詞は外部の公式・許諾サイトへのリンクのみを提供し、本アプリ内には掲載しません。</p>
+  <p>Memoria ── a structured interface for the world of Yorushika</p>
+</footer>
+
+<!-- ══ DETAIL MODAL ══ -->
+<div class="scrim" id="scrim">
+  <div class="detail" id="detail"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+/* ═══════════════ DATA ═══════════════
+   少数精鋭。1曲 = 1オブジェクト。
+   axes.t = 時間 0(朝)→1(夜) / axes.e = 感情 0(静寂・喪失)→1(高揚・衝動)
+   season: spring|summer|autumn|winter
+   works[].conf / theory layers: koushiki|yuuryoku|user
+*/
+const SEASON={spring:'var(--spring)',summer:'var(--summer)',autumn:'var(--autumn)',winter:'var(--winter)'};
+const CONF={koushiki:'公式',yuuryoku:'有力考察',user:'ユーザー'};
+
+const RICH=[
+ {id:'matasaburo',title:'又三郎',reading:'またさぶろう',album:'幻燈',albumYear:'幻燈 #9',bpm:202,key:'Em',season:'autumn',
+  tieup:'',
+  shincho:'『新編 風の又三郎』宮沢賢治',
+  axes:{t:.5,e:.82}, motifs:['宮沢賢治','風','嵐','衝動'],
+  lyric:'又三郎',
+  works:[{t:'風の又三郎',a:'宮沢賢治（小説）',conf:'koushiki',
+    n:'公式特設サイトが「モチーフに制作」と明記。歌詞「青いくるみも吹きとばせ／すっぱいかりんも吹きとばせ」は原作の詩句の引用。退屈な日常を吹き飛ばす転校生＝風の精への渇望。'}],
+  places:[{ref:'iwate'}],
+  theory:{koushiki:['宮沢賢治『風の又三郎』を明確に下敷きにした一曲（公式）。'],
+    yuuryoku:['「風」は停滞した日常を壊す変化の象徴。「もっと大きな台風」を待つ心情として読まれる。'],
+    user:[]}},
+
+ {id:'tsukini',title:'月に吠える',reading:'つきにほえる',album:'幻燈',albumYear:'幻燈 #6',bpm:120,key:'Gm',season:'winter',
+  tieup:'',
+  shincho:'『萩原朔太郎詩集』萩原朔太郎',
+  axes:{t:1,e:.3}, motifs:['月','孤独','犬','夜'],
+  lyric:'月に吠える',
+  works:[{t:'月に吠える',a:'萩原朔太郎（詩集）',conf:'koushiki',
+    n:'n-buna本人がX（旧Twitter）で「萩原朔太郎の詩集『月に吠える』から」と明言。MVには短編『猫町』のモチーフも。犬が月に吠えるように届かぬものへ声を上げる孤独。'}],
+  places:[],
+  theory:{koushiki:['萩原朔太郎の詩集『月に吠える』が出典（n-buna公言）。'],
+    yuuryoku:['再解釈される月は「魂の影・表現衝動・自らの獣性」だとn-bunaは語る。'],
+    user:[]}},
+
+ {id:'shayo',title:'斜陽',reading:'しゃよう',album:'（シングル）',albumYear:'僕の心のヤバイやつ OP',bpm:124,key:'C',season:'autumn',
+  tieup:'アニメ『僕の心のヤバイやつ』OP主題歌',
+  axes:{t:.75,e:.35}, motifs:['夕暮れ','没落','喪失','酸っぱい葡萄'],
+  lyric:'斜陽',
+  works:[{t:'斜陽',a:'太宰治（小説）',conf:'yuuryoku',
+    n:'滅びゆく家を描いた太宰の小説と題名が一致。イソップ「すっぱい葡萄」との重ね読みも。※n-buna本人の公言は未確認で、音楽メディア・ファンの考察。'}],
+  places:[],
+  theory:{koushiki:['アニメ『僕の心のヤバイやつ』OP主題歌として制作。'],
+    yuuryoku:['太宰治『斜陽』が題名・主題の出典とされる。「沈む」ことを受け入れる滅びの美学。','劇場版主題歌「茜」と対をなす〈姉妹曲〉として読まれる（ともに夕映えと近代文学を重ねる）。'],
+    user:[]}},
+
+ {id:'chinokate',title:'チノカテ',reading:'ちのかて',album:'幻燈',albumYear:'幻燈 #4',bpm:85,key:'Db',season:'summer',
+  tieup:'ドラマ『魔法のリノベ』主題歌',
+  shincho:'『地の糧』アンドレ・ジッド（約40年ぶり復刊）',
+  axes:{t:.4,e:.6}, motifs:['生','糧','旅','食'],
+  lyric:'チノカテ',
+  works:[{t:'地の糧',a:'アンドレ・ジッド（散文）',conf:'koushiki',
+    n:'ジッドの『地の糧』が題名の由来。『幻燈』の新潮文庫コラボで公式に対応作品とされた（同書はコラボで約40年ぶりに復刊）。書物を捨てて外へ出よ――知識より生の経験を。'}],
+  places:[],
+  theory:{koushiki:['ドラマ『魔法のリノベ』主題歌。新潮文庫コラボでアンドレ・ジッド『地の糧』が公式モチーフとされた。'],
+    yuuryoku:['知識より経験・生の肯定として読まれる。'],
+    user:[]}},
+
+ {id:'algernon',title:'アルジャーノン',reading:'あるじゃーのん',album:'幻燈',albumYear:'幻燈 #15',bpm:72,key:'C',season:'spring',
+  tieup:'ドラマ『夕暮れに、手をつなぐ』主題歌',
+  axes:{t:.5,e:.4}, motifs:['花','記憶','喪失','知能'],
+  lyric:'アルジャーノン',
+  works:[{t:'アルジャーノンに花束を',a:'ダニエル・キイス（小説）',conf:'yuuryoku',
+    n:'知能を得てまた失う男と実験ネズミの物語と題名が一致。得たものを手放す哀しみ。※題名の一致が根拠のファン考察。'}],
+  places:[],
+  theory:{koushiki:['ドラマ『夕暮れに、手をつなぐ』主題歌として制作。'],
+    yuuryoku:['ダニエル・キイス『アルジャーノンに花束を』が下敷きとされる。喪失していく相手への手向け。'],
+    user:[]}},
+
+ {id:'roujin',title:'老人と海',reading:'ろうじんとうみ',album:'幻燈',albumYear:'幻燈 #11',bpm:120,key:'F',season:'summer',
+  tieup:'「STAFF START」CMソング',
+  shincho:'『老人と海』ヘミングウェイ',
+  axes:{t:.55,e:.5}, motifs:['海','老い','灯台','夏'],
+  lyric:'老人と海',
+  works:[{t:'老人と海',a:'アーネスト・ヘミングウェイ（小説）',conf:'koushiki',
+    n:'公式・各メディアが「モチーフに書き下ろし」と明記。視点を少年に置き換え、海への憧憬を描く。敗れてなお折れない静かな不屈。'}],
+  places:[],
+  theory:{koushiki:['ヘミングウェイ『老人と海』をモチーフに制作（公式）。'],
+    yuuryoku:['「僕らは変わらない」――過ぎゆく時間の中で変わらないものへの祈りとして読まれる。'],
+    user:[]}},
+
+ {id:'ainijou',title:'藍二乗',reading:'あいにじょう',album:'だから僕は音楽を辞めた',albumYear:'だから僕は音楽を辞めた #2',bpm:210,key:'F#',season:'summer',
+  tieup:'',
+  axes:{t:.7,e:.3}, motifs:['青','海','手紙','別れ'],
+  lyric:'藍二乗',
+  works:[],
+  quotes:[{a:'言葉遊び（数学）',t:'藍二乗 ＝ i² ＝ −1',conf:'koushiki',
+    n:'n-bunaがインタビューで意図を認めた題名の仕掛け。虚数単位 i（愛／藍）を二乗すると −1。「i（愛）がいない」を数式に畳み込んだタイトル。'}],
+  places:[{ref:'stockholm'}],
+  theory:{koushiki:['アルバム「だから僕は音楽を辞めた」の起点。青年エイミーがエルマへ宛てた手紙の物語。'],
+    yuuryoku:['「藍」＝ヨルシカの世界を貫く青。変わらない日常への諦念と愛着が滲む。'],
+    user:[]}},
+
+ {id:'hananiborei',title:'花に亡霊',reading:'はなにぼうれい',album:'盗作',albumYear:'盗作 #14',bpm:90,key:'E',season:'summer',
+  tieup:'映画『泣きたい私は猫をかぶる』主題歌',
+  axes:{t:.5,e:.55}, motifs:['夏','亡霊','記憶','花'],
+  lyric:'花に亡霊',
+  works:[],
+  places:[{ref:'tokoname'}],
+  theory:{koushiki:['映画『泣きたい私は猫をかぶる』主題歌として制作。n-bunaは「綺麗な言葉と景色を並べた歌」と語り、特定の下敷きは明言していない。'],
+    yuuryoku:['「亡霊」は死者ではなく、消えない記憶・面影のメタファーとして読まれる。'],
+    user:['尾崎放哉の句との関連を指摘する声もあるが、あくまでファンの読み。']}},
+
+ {id:'tadakimini',title:'ただ君に晴れ',reading:'ただきみにはれ',album:'負け犬にアンコールはいらない',albumYear:'負け犬にアンコールはいらない #6',bpm:140,key:'F',season:'summer',
+  tieup:'',
+  axes:{t:.4,e:.75}, motifs:['夏','青春','自転車','海'],
+  lyric:'ただ君に晴れ',
+  works:[],
+  quotes:[{a:'正岡子規（俳句）',t:'「絶えず人いこふ夏野の石一つ」（『寒山落木』）',conf:'koushiki',
+    n:'2番サビ前の一節「絶えず君のいこふ／記憶に夏野の石一つ」は子規の句の本歌取り。「人」を「君」に置き換えている。n-bunaがナタリーのインタビューで引用元として語ったもの。'}],
+  places:[{ref:'amaharashi'}],
+  theory:{koushiki:['初期ヨルシカを代表する夏の青春曲。'],
+    yuuryoku:['一夏の記憶を封じ込めた曲。「晴れ」は天気であると同時に、君への感情の比喩。'],
+    user:['自転車・海・夏服といった夏の記号が、特定の海辺の情景を思わせるとされる。']}},
+
+ {id:'harudorobo',title:'春泥棒',reading:'はるどろぼう',album:'創作',albumYear:'創作 #2',bpm:125,key:'F',season:'spring',
+  tieup:'大成建設 企業CMソング',
+  axes:{t:.45,e:.6}, motifs:['春','桜','死','時間'],
+  lyric:'春泥棒',
+  works:[{t:'小説『盗作』の一場面',a:'n-buna（自作小説）',conf:'koushiki',
+    n:'n-bunaがXで着想を詳述。桜＝命、花＝寿命、風＝時間、桜を散らす春風＝「春泥棒」。昭和記念公園の欅を桜に見立てた経緯も語られ、アルバム『盗作』の小説と接続する。'}],
+  places:[{ref:'showakinen'}],
+  theory:{koushiki:['自作小説『盗作』の情景に基づく（n-buna公言）。散る桜を数えるように残り時間を惜しむ。'],
+    yuuryoku:['桜が散りきる＝命の終わりの暗喩。看取りの歌として広く読まれる。'],
+    user:[]}},
+
+ {id:'haru',title:'晴る',reading:'はる',album:'二人称',albumYear:'二人称 #8',bpm:204,key:'D',season:'spring',
+  tieup:'アニメ『葬送のフリーレン』第2クールOP',
+  axes:{t:.35,e:.8}, motifs:['春','風','旅','光'],
+  lyric:'晴る',
+  works:[],
+  places:[],
+  theory:{koushiki:['アニメ『葬送のフリーレン』OP主題歌。n-bunaは「晴れではない状態から晴れを願う曲」と説明。特定の文学的下敷きは公言していない。'],
+    yuuryoku:['「晴る」は春／晴を動詞化した造語との読み。古語「晴る」やドイツ語連想（ヒンメル）などファンの言葉遊び考察も。'],
+    user:[]}},
+
+ {id:'bremen',title:'ブレーメン',reading:'ぶれーめん',album:'幻燈',albumYear:'幻燈 #3',bpm:95,key:'D',season:'winter',
+  tieup:'',
+  shincho:'『ブレーメンの音楽師』グリム',
+  axes:{t:.6,e:.85}, motifs:['行進','自由','反抗','夜'],
+  lyric:'ブレーメン',
+  works:[{t:'ブレーメンの音楽師',a:'グリム童話',conf:'koushiki',
+    n:'居場所を追われた動物たちが自由を求めて歩く童話。『幻燈』の新潮文庫コラボで公式に対応作品とされた（新潮文庫版の題は「ブレーメンの音楽師」）。はみ出し者たちの行進。'}],
+  places:[],
+  theory:{koushiki:['音楽画集『幻燈』第1章に収録。新潮文庫コラボでグリム『ブレーメンの音楽師』が公式モチーフとされた。'],
+    yuuryoku:['規範からはみ出す者たちの連帯・自由の讃歌として読まれる。'],
+    user:[]}},
+
+ {id:'yakou',title:'夜行',reading:'やこう',album:'盗作',albumYear:'盗作 #13',bpm:85,key:'C#',season:'summer',
+  tieup:'映画『泣きたい私は猫をかぶる』挿入歌',
+  axes:{t:1,e:.45}, motifs:['夜','旅','郷愁','夏祭り'],
+  lyric:'夜行',
+  works:[],
+  places:[{ref:'tokoname'}],
+  theory:{koushiki:['映画『泣きたい私は猫をかぶる』挿入歌。夜の道行きを描いた郷愁の曲。'],
+    yuuryoku:['過ぎた夏・失った人を追って夜を歩く心象。「夜行」＝現実と記憶の境を行く旅。'],
+    user:['夏祭りや花火といった夜の情景が、原風景としての故郷を想起させるとされる。']}},
+
+ {id:'kutsunohanabi',title:'靴の花火',reading:'くつのはなび',album:'夏草が邪魔をする',albumYear:'夏草が邪魔をする #6',bpm:120,key:'G',season:'summer',
+  tieup:'',
+  rerec:{album:'幻燈',albumYear:'幻燈 #10',note:'『幻燈』第1章に Re-Recording 版を収録。バンドサウンドで再構築され、原曲より厚みのあるアレンジに。'},
+  axes:{t:.9,e:.35}, motifs:['宮沢賢治','花火','喪失','夏'],
+  lyric:'靴の花火',
+  works:[],
+  quotes:[{a:'宮沢賢治（童話）',t:'『よだかの星』',conf:'yuuryoku',
+    n:'歌詞に「よだか」が直接現れ、醜いと蔑まれた夜鷹が身を焼いて星になる童話が下敷きと広く読まれる。報われぬまま昇天する魂と、打ち上がって散る花火が重なる。※定説化しているがn-buna本人の明言は未確認。'}],
+  places:[],
+  theory:{koushiki:['1stミニ『夏草が邪魔をする』収録（後に『幻燈』へ再録）。'],
+    yuuryoku:['「靴」＝残された者、地に足のついた側。打ち上がる花火＝去った者との対比として読まれる。'],
+    user:[]}},
+
+ {id:'parade',title:'パレード',reading:'ぱれーど',album:'だから僕は音楽を辞めた',albumYear:'だから僕は音楽を辞めた #11',bpm:110,key:'D',season:'winter',
+  tieup:'',
+  axes:{t:.8,e:.4}, motifs:['行進','死後','静寂','別れ'],
+  lyric:'パレード',
+  works:[],
+  places:[{ref:'sarushima'}],
+  theory:{koushiki:['アルバム「だから僕は音楽を辞めた」に収録。エイミーの物語の一部。'],
+    yuuryoku:['「パレード」＝葬列・見送りの比喩として読まれる。祝祭と喪の両義。'],
+    user:[]}},
+
+ {id:'nautilus',title:'ノーチラス',reading:'のーちらす',album:'エルマ',albumYear:'エルマ #14',bpm:80,key:'C#',season:'winter',
+  tieup:'',
+  axes:{t:.95,e:.3}, motifs:['海','眠り','潜水','夢'],
+  lyric:'ノーチラス',
+  works:[{t:'海底二万里',a:'ジュール・ヴェルヌ（小説）',conf:'koushiki',
+    n:'n-bunaが公式特設サイトのコメントで「題はジュール・ヴェルヌの海底二万里に出る潜水艦ノーチラス号からの引用。眠りからの目覚めと深海から浮上するそれのメタファー」と明言。'}],
+  places:[{ref:'stockholm'},{ref:'gotland'},{ref:'lapland'},{ref:'lund'},{ref:'copenhagen'},{ref:'farosund'}],
+  theory:{koushiki:['アルバム「エルマ」の最終曲。suis曰く「ヨルシカのはじまりの曲」で、深い眠りから覚める曲。'],
+    yuuryoku:['深く潜って現実を遮断する願望。「夜が明けたら」＝現実復帰を先延ばしにする眠りへの逃避。','MVはエイミーが送った写真と、エルマがたどり着いた同じ風景を重ねる。エイミーが花緑青をあおって海へ消えた、その最期の地へエルマが到達する情景として読まれる。'],
+    user:[]}},
+
+ {id:'itte',title:'言って。',reading:'いって',album:'夏草が邪魔をする',albumYear:'夏草が邪魔をする #3',bpm:180,key:'C',season:'winter',
+  tieup:'',
+  axes:{t:.7,e:.35}, motifs:['別れ','言葉','水','喪失'],
+  lyric:'言って。',
+  works:[],
+  places:[{ref:'teramachi'}],
+  theory:{koushiki:['1stミニ『夏草が邪魔をする』収録。失った人へ「せめて何か言って」と呼びかける別れの歌。'],
+    yuuryoku:['同アルバム「雲と幽霊」との相互参照（言えなかった言葉→言って）が指摘される。水底・沈むイメージが全編を貫く。'],
+    user:[]}},
+
+ {id:'shisohan',title:'思想犯',reading:'しそうはん',album:'盗作',albumYear:'盗作 #10',bpm:200,key:'F',season:'winter',
+  tieup:'',
+  axes:{t:.6,e:.5}, motifs:['孤独','言葉','反抗','鳥'],
+  lyric:'思想犯',
+  works:[{t:'一九八四年',a:'ジョージ・オーウェル（小説）',conf:'koushiki',
+    n:'題名は『1984年』の「思想犯（thoughtcrime）／思考警察」の概念に由来。思想・内心を罪とする管理社会の世界観。n-bunaが公言（公式MV説明欄・特設サイト）。'}],
+  quotes:[{a:'尾崎放哉（自由律俳句）',t:'放哉の作品・晩年へのオマージュ',conf:'koushiki',
+    n:'題名（＝1984年由来）とは別に、歌詞は大正期の自由律俳人・尾崎放哉の作品と生涯へのオマージュだとn-bunaが公言。'}],
+  places:[],
+  theory:{koushiki:['アルバム「盗作」収録。題名はオーウェル、歌詞は尾崎放哉（ともに公式）。'],
+    yuuryoku:['言葉＝思想を罰する世界への、静かな反抗として読まれる。','尾崎放哉に加え、種田山頭火（「鴉啼いてわたしも一人」等）の自由律句を重ねる考察もある。'],
+    user:[]}},
+
+ {id:'sayumou',title:'左右盲',reading:'さゆうもう',album:'幻燈',albumYear:'幻燈 #14',bpm:76,key:'D',season:'winter',
+  tieup:'映画『今夜、世界からこの恋が消えても』主題歌',
+  shincho:'『幸福な王子』オスカー・ワイルド',
+  axes:{t:.8,e:.3}, motifs:['献身','喪失','右と左','冬'],
+  lyric:'左右盲',
+  works:[{t:'幸福な王子',a:'オスカー・ワイルド（童話）',conf:'koushiki',
+    n:'自らの金や宝石を貧者へ与え尽くす王子とツバメの童話。『幻燈』の新潮文庫コラボで公式に対応作品とされた。n-bunaは「相手の顔や仕草を少しずつ忘れることを左右盲になぞらえた」とも。見返りを求めず捧げ、すり減っていく愛。'}],
+  places:[],
+  theory:{koushiki:['映画『今夜、世界からこの恋が消えても』主題歌。新潮文庫コラボでワイルド『幸福な王子』が公式モチーフとされた。'],
+    yuuryoku:['「左右盲」＝相手に自分を明け渡し境界を失うほどの献身の比喩として読まれる。'],
+    user:[]}},
+
+ {id:'replicant',title:'レプリカント',reading:'れぷりかんと',album:'盗作',albumYear:'盗作 #6',bpm:190,key:'F',season:'winter',
+  tieup:'',
+  axes:{t:.55,e:.7}, motifs:['人造','心','問い','夜'],
+  lyric:'レプリカント',
+  works:[{t:'アンドロイドは電気羊の夢を見るか?',a:'フィリップ・K・ディック（小説）',conf:'yuuryoku',
+    n:'人造人間（レプリカント）と人間の境界を問うSF、映画『ブレードランナー』が下敷きとされる。模造の感情は本物かという問い。※ファン考察。'}],
+  places:[],
+  theory:{koushiki:['アルバム「盗作」収録。'],
+    yuuryoku:['「レプリカント」＝複製された存在。本物と偽物、創作と盗作というアルバム主題に接続して読まれる。'],
+    user:[]}},
+
+ {id:'hanamotsutare',title:'花人局',reading:'はなもたせ',album:'盗作',albumYear:'盗作 #7',bpm:125,key:'C#',season:'autumn',
+  tieup:'',
+  axes:{t:.85,e:.4}, motifs:['騙し','夜','花','退廃','妻'],
+  lyric:'花人局',
+  works:[{t:'「美人局（つつもたせ）」をもじった造語',a:'n-buna（言葉遊び）',conf:'koushiki',
+    n:'n-bunaは「美人局」をもじり、「人生に花をもたせて消えていく人」＝盗作家の男にとっての妻を描いた曲だと説明。掛詞を多用し、退廃の中に情を潜ませる。'}],
+  places:[],
+  theory:{koushiki:['アルバム『盗作』収録。題は「美人局」の造語で、男の傍らにいる「妻」を主題にするとn-bunaが説明。'],
+    yuuryoku:['色仕掛けの罠という原義を裏に、去りゆく者へ花をもたせる哀切として読まれる。','三木清『人生論ノート』の「孤独は山になく、街にある」や、朝鮮民話「サルスベリ（百日紅）」を下敷きにするとの考察もある。'],
+    user:[]}},
+
+ {id:'miyakoochi',title:'都落ち',reading:'みやこおち',album:'幻燈',albumYear:'幻燈 #2',bpm:120,key:'Eb',season:'autumn',
+  tieup:'',
+  axes:{t:.6,e:.4}, motifs:['旅','郷愁','別れ','都'],
+  lyric:'都落ち',
+  works:[],
+  quotes:[{a:'万葉集（和歌）',t:'巻2・116番／但馬皇女「人言を繁み言痛みおのが世にいまだ渡らぬ朝川渡る」',conf:'koushiki',
+    n:'n-bunaがJ-WAVEで「学生の頃から心に引っかかっている歌」と語り、この和歌を下敷きに別れの歌へ翻案。相手の頭を「都」に見立て、そこから自分がいなくなることを「都落ち」とした。'}],
+  places:[{ref:'shirahama'}],
+  theory:{koushiki:['音楽画集『幻燈』第1章に収録。都を離れていく者の心情を歌う。'],
+    yuuryoku:['「都落ち」＝華やかな場所からの退場。夢破れて去る郷愁と再出発の両義として読まれる。'],
+    user:[]}},
+
+ {id:'telepath',title:'テレパス',reading:'てれぱす',album:'（シングル）',albumYear:'大雪海のカイナ OP',bpm:140,key:'E',season:'summer',
+  tieup:'アニメ『大雪海のカイナ』OP主題歌',
+  axes:{t:.4,e:.6}, motifs:['心','伝達','距離','光'],
+  lyric:'テレパス',
+  works:[],
+  places:[],
+  theory:{koushiki:['アニメ『大雪海のカイナ』OP主題歌（後に『二人称』へ）。言葉にせずとも伝わってほしいという願い。'],
+    yuuryoku:['「テレパス」＝以心伝心への渇望。伝わらなさと、それでも届けたい想いとして読まれる。'],
+    user:[]}},
+
+ {id:'haruhisagi',title:'春ひさぎ',reading:'はるひさぎ',album:'盗作',albumYear:'盗作 #3',bpm:95,key:'Am',season:'spring',
+  tieup:'',
+  axes:{t:.75,e:.35}, motifs:['春','退廃','夜','売'],
+  lyric:'春ひさぎ',
+  works:[{t:'Hit the Road Jack',a:'レイ・チャールズ（楽曲）',conf:'yuuryoku',
+    n:'スウィングジャズの曲調がレイ・チャールズを思わせるとされる。「春をひさぐ（売る）」＝身を売るように何かを差し出す退廃の比喩。※ファン考察。'}],
+  places:[],
+  theory:{koushiki:['アルバム「盗作」収録。「春をひさぐ（売る）」ことを題にした退廃的な一曲。'],
+    yuuryoku:['遊興と自己嫌悪、身を売るように何かを差し出す感覚の比喩として読まれる。'],
+    user:[]}},
+
+ {id:'dakaraboku',title:'だから僕は音楽を辞めた',reading:'だからぼくはおんがくをやめた',album:'だから僕は音楽を辞めた',albumYear:'だから僕は音楽を辞めた #14',bpm:125,key:'E',season:'winter',
+  tieup:'',
+  axes:{t:.7,e:.45}, motifs:['音楽','別れ','夏','諦め'],
+  lyric:'だから僕は音楽を辞めた',
+  works:[{t:'『嘘の衰退（The Decay of Lying）』ほか',a:'オスカー・ワイルド（評論）',conf:'yuuryoku',
+    n:'二部作の根幹をなす「人生は芸術を模倣する（Life imitates Art）」は、ワイルドの評論『嘘の衰退』の一節。エイミー／エルマ二部作の思想的な下敷きとされ、表題曲「盗作」でもこの言葉が引かれる。'}],
+  places:[{ref:'stockholm'},{ref:'shimonada'},{ref:'meganeko'}],
+  theory:{koushiki:['同名アルバムの表題曲。音楽を辞める青年エイミーの物語の核。二部作の思想的中心。'],
+    yuuryoku:['「幸福も別れも、本当は等価だ」――創作と生への諦めと執着が交錯する。'],
+    user:[]}},
+
+ {id:'kumoto',title:'雲と幽霊',reading:'くもとゆうれい',album:'夏草が邪魔をする',albumYear:'夏草が邪魔をする #7',bpm:85,key:'A',season:'summer',
+  tieup:'',
+  axes:{t:.75,e:.4}, motifs:['夏','幽霊','夜','喪失'],
+  lyric:'雲と幽霊',
+  works:[],
+  places:[],
+  theory:{koushiki:['バンド名「ヨルシカ」の由来曲。歌詞「夜しか（もう眠れずに）」からバンド名が取られた。'],
+    yuuryoku:['去った者が幽霊となって君を見守る視点。夏の終わりの寂しさを湛える初期の代表曲。'],
+    user:[]}},
+
+ {id:'kokoroni',title:'心に穴が空いた',reading:'こころにあながあいた',album:'エルマ',albumYear:'エルマ #9',bpm:199,key:'F#',season:'winter',
+  tieup:'',
+  axes:{t:.65,e:.6}, motifs:['喪失','旅','空虚','北欧'],
+  lyric:'心に穴が空いた',
+  works:[],
+  places:[{ref:'gotland'},{ref:'visby_clemens'}],
+  theory:{koushiki:['アルバム「エルマ」収録。実写MVはスウェーデン・ゴットランド島で撮影。胸に穴の空いた少女人形が登場する。'],
+    yuuryoku:['エイミーを失ったエルマの喪失感を、文字通り「空いた穴」として描く。'],
+    user:[]}},
+
+ {id:'amecap',title:'雨とカプチーノ',reading:'あめとかぷちーの',album:'エルマ',albumYear:'エルマ #4',bpm:100,key:'B',season:'summer',
+  tieup:'',
+  axes:{t:.55,e:.4}, motifs:['雨','珈琲','記憶','旅'],
+  lyric:'雨とカプチーノ',
+  works:[{t:'漢詩「勧酒」の訳詩（名句「さよならだけが人生だ」）',a:'井伏鱒二 訳（于武陵の詩／『厄除け詩集』）',conf:'yuuryoku',
+    n:'歌詞は、井伏鱒二が于武陵の漢詩「勧酒」を訳した名句――花に嵐のたとえもあるぞ、さよならだけが人生だ――を下敷きにするとされる。出会いと別れの無常を、雨と珈琲の苦さに重ねる。※広く知られた読みだがn-buna本人の明言は未確認。'}],
+  places:[{ref:'stockholm'}],
+  theory:{koushiki:['アルバム「エルマ」収録。前作「詩書きとコーヒー」（エイミー視点）と対になるエルマ視点のアンサーソング。'],
+    yuuryoku:['井伏鱒二の訳詩「さよならだけが人生だ」を引くとされ、雨と珈琲の苦さに旅の孤独と別れの無常が滲む。'],
+    user:[]}},
+
+ {id:'juntoumei',title:'準透明少年',reading:'じゅんとうめいしょうねん',album:'負け犬にアンコールはいらない',albumYear:'負け犬にアンコールはいらない #5',bpm:195,key:'D',season:'winter',
+  tieup:'',
+  axes:{t:.6,e:.7}, motifs:['透明','孤独','衝動','存在'],
+  lyric:'準透明少年',
+  works:[],
+  places:[{ref:'kokubunniji'}],
+  theory:{koushiki:['2ndミニ『負け犬にアンコールはいらない』収録。'],
+    yuuryoku:['「透明＝誰にも見つけてもらえない存在」。n-bunaのボカロ曲「透明エレジー」と透明モチーフを重ねる読みも。'],
+    user:[]}},
+
+ {id:'hitchcock',title:'ヒッチコック',reading:'ひっちこっく',album:'負け犬にアンコールはいらない',albumYear:'負け犬にアンコールはいらない #3',bpm:181,key:'Fm',season:'autumn',
+  tieup:'',
+  rerec:{album:'二人称',albumYear:'二人称 #18',note:'2026年のアルバム『二人称』に Re-Recording 版を収録。約8年を経た歌声とアレンジで歌い直された。'},
+  axes:{t:.5,e:.65}, motifs:['問い','不安','大人','言葉'],
+  lyric:'ヒッチコック',
+  works:[],
+  places:[],
+  theory:{koushiki:['2ndミニ『負け犬にアンコールはいらない』収録。「先生、人生相談です」と問いを重ねる初期の人気曲。'],
+    yuuryoku:['題名は映画監督ヒッチコックを指すとされるが、n-bunaの明言は未確認のファン考察。'],
+    user:[]}},
+
+ {id:'usotsuki',title:'嘘月',reading:'うそつき',album:'創作',albumYear:'創作 #5',bpm:80,key:'Bm',season:'winter',
+  tieup:'映画『泣きたい私は猫をかぶる』エンドソング',
+  axes:{t:.95,e:.3}, motifs:['月','嘘','喪失','夜'],
+  lyric:'嘘月',
+  works:[],
+  quotes:[{a:'尾崎放哉（自由律俳句）',t:'放哉の句を歌詞の節々に',conf:'koushiki',
+    n:'n-buna本人が公式コメントで「歌詞の節々に尾崎放哉の句を散りばめています」と公言。「こんなよい月を一人で見て寝る」等の句が下敷きとされる（どの句かはファン考察）。'}],
+  places:[],
+  theory:{koushiki:['EP「創作」収録／映画『泣きたい私は猫をかぶる』エンドソング。尾崎放哉の句を散りばめたとn-bunaが公言。'],
+    yuuryoku:['去った人を想い、嘘のように白い月を一人で見上げる喪失の歌。'],
+    user:[]}},
+
+ {id:'kaseijin',title:'火星人',reading:'かせいじん',album:'二人称',albumYear:'二人称 #11',bpm:100,key:'E',season:'winter',
+  tieup:'アニメ『小市民シリーズ』第2期OP',
+  axes:{t:.6,e:.7}, motifs:['孤独','疎外','言葉','距離'],
+  lyric:'火星人',
+  works:[],
+  places:[],
+  theory:{koushiki:['アニメ『小市民シリーズ』第2期OP主題歌。アルバム「二人称」収録。MVはn-buna原案・監督。'],
+    yuuryoku:['「火星人」＝周囲から浮いた異物としての自己。分かり合えなさと、それでも繋がりたい心。'],
+    user:['書簡の流れでは、時候の挨拶を欠く異質な一通。孤独と疎外、そして「へび」の欠落・「修羅」の怒りが行き着いた諦念として、一連の手紙の終盤に置くのが自然と読める（物語タブ「書簡の時系列」参照）。']}},
+
+ {id:'bakudanma',title:'爆弾魔',reading:'ばくだんま',album:'負け犬にアンコールはいらない',albumYear:'負け犬にアンコールはいらない #2',bpm:170,key:'Db',season:'summer',
+  tieup:'',
+  rerec:{album:'盗作',albumYear:'盗作 #4',note:'3rdアルバム『盗作』に Re-Recording 版を収録（BPM 181・Key Fm）。破壊衝動を主題にした『盗作』の世界観に合わせて録り直された。'},
+  axes:{t:.5,e:.85}, motifs:['衝動','夏','退屈','百日紅'],
+  lyric:'爆弾魔',
+  works:[],
+  quotes:[{a:'加賀千代女（俳句）',t:'「散れば咲き散れば咲きして百日紅」',conf:'koushiki',
+    n:'サビの「散れば咲け」の一節は、江戸の俳人・加賀千代女の句を踏まえたもの。n-bunaがインタビューで引用元として語っている。咲いては散る百日紅＝繰り返される衝動の比喩。'}],
+  places:[],
+  theory:{koushiki:['2ndミニ『負け犬にアンコールはいらない』収録。退屈な日常を壊したい衝動を歌う。'],
+    yuuryoku:['梶井基次郎『檸檬』のレモン＝爆弾のイメージと重ねる読みもあるが、こちらはファン考察。'],
+    user:[]}},
+
+ {id:'chidori',title:'千鳥',reading:'ちどり',album:'二人称',albumYear:'二人称 #20',bpm:120,key:'Bb',season:'winter',
+  tieup:'',
+  axes:{t:.55,e:.5}, motifs:['宮沢賢治','風','命','呼び声'],
+  lyric:'千鳥',
+  works:[{t:'風がおもてで呼んでゐる（詩集『疾中』）',a:'宮沢賢治（詩）',conf:'koushiki',
+    n:'病床の詩人を、外の風が生の世界へ呼び戻そうとする賢治の詩がモチーフ。「呼ばれる命」と「呼ぶ命」の転換を描く。MVは森江康太。'}],
+  places:[{ref:'iwate'}],
+  theory:{koushiki:['アルバム『二人称』収録。宮沢賢治の詩「風がおもてで呼んでゐる」がモチーフ。'],
+    yuuryoku:['花巻（賢治の郷）の新花巻駅が聖地として挙げられる。'],
+    user:[]}},
+
+ {id:'shura',title:'修羅',reading:'しゅら',album:'二人称',albumYear:'二人称 #10',bpm:100,key:'B',season:'winter',
+  tieup:'ドラマ『僕達はまだその星の校則を知らない』主題歌',
+  axes:{t:.6,e:.6}, motifs:['宮沢賢治','怒り','孤独','春'],
+  lyric:'修羅',
+  works:[{t:'春と修羅（詩集）',a:'宮沢賢治（詩）',conf:'koushiki',
+    n:'賢治の生前唯一の詩集『春と修羅』に影響を受けた楽曲。「修羅」＝内なる怒りと孤独（阿修羅）。n-bunaは幼少から賢治を愛読すると語る。'}],
+  places:[],
+  theory:{koushiki:['ドラマ『僕達はまだその星の校則を知らない』主題歌。宮沢賢治『春と修羅』に影響を受けた。'],
+    yuuryoku:['春の光と、猛る修羅の心の対比。'],
+    user:['『二人称』の書簡として読むと、文通が進んだ後、自らの内なる「静かな怒り」を告白する一通。「へび」で感じた欠落の正体こそがこの怒りだった、とも読める（物語タブ「書簡の時系列」参照）。']}},
+
+ {id:'hachigatsu',title:'八月、某、月明かり',reading:'はちがつ、ぼう、つきあかり',album:'だから僕は音楽を辞めた',albumYear:'だから僕は音楽を辞めた #3',bpm:220,key:'E',season:'summer',
+  tieup:'',
+  axes:{t:.9,e:.72}, motifs:['夏','月','自転車','実在地名'],
+  lyric:'八月、某、月明かり',
+  works:[],
+  places:[{ref:'higashifushimi'},{ref:'stockholm'},{ref:'lapland'}],
+  theory:{koushiki:['アルバム「だから僕は音楽を辞めた」収録。歌詞に日本の西武新宿線沿線の地名（東伏見・小平・富士見通り）と、スウェーデンの地名（ストックホルム・ガムラスタン・キルナ）が同居する、二部作の舞台をまたぐ一曲。'],
+    yuuryoku:['青年エイミーの心情。日本の日常と北欧の旅が同じ月明かりの下で重なる。'],
+    user:[]}},
+
+ {id:'mizuuminomachi',title:'湖の街',reading:'みずうみのまち',album:'エルマ',albumYear:'エルマ #5',bpm:160,key:'Ab',season:'winter',
+  tieup:'',
+  axes:{t:.4,e:.4}, motifs:['インスト','湖','旅','実在地名'],
+  lyric:'湖の街',
+  places:[{ref:'jonkoping'}],
+  works:[],
+  theory:{koushiki:['アルバム「エルマ」のインスト曲。スウェーデン・ヴェッテルン湖畔の街ヨンショーピンが由来。n-buna自身が現地で泊まり、録音した環境音が使われている（公式）。'],
+    yuuryoku:['エルマの旅路の一場面。'],
+    user:[]}},
+
+ {id:'aporia',title:'アポリア',reading:'あぽりあ',album:'二人称',albumYear:'二人称 #14',bpm:115,key:'D',season:'winter',
+  tieup:'アニメ『チ。—地球の運動について—』ED',
+  axes:{t:.55,e:.55}, motifs:['知','宇宙','問い','気球'],
+  lyric:'アポリア',
+  works:[{t:'哲学用語「アポリア」／魚豊『チ。—地球の運動について—』',a:'哲学用語＋原作漫画',conf:'koushiki',
+    n:'曲名は「解決の糸口が見つからない難問・その困惑」を指す哲学用語からn-bunaが命名。地動説に人生を賭す原作の熱に呼応し、歌詞の気球は「際限のない知への欲求」の比喩。n-bunaは原作者のファンと公言。'}],
+  places:[],
+  theory:{koushiki:['アニメ『チ。—地球の運動について—』ED主題歌。曲名は哲学用語「アポリア」（n-buna命名）。'],
+    yuuryoku:['「知りようのないものを知りたい」心の飢えを主題に、原作の探究と重ねて読まれる。'],
+    user:['書簡の流れでは、暑さの描写から夏の一通。「知らないことは死んでいるのと同じ」という、知への渇望と焦燥の思索が始まる段階と読める（物語タブ「書簡の時系列」参照）。']}},
+
+ {id:'hebi',title:'へび',reading:'へび',album:'二人称',albumYear:'二人称 #15',bpm:86,key:'F#m',season:'spring',
+  tieup:'アニメ『チ。—地球の運動について—』後半クールED',
+  axes:{t:.45,e:.45}, motifs:['蛇','知恵の実','春','知'],
+  lyric:'へび',
+  works:[{t:'旧約聖書「知恵の実」（蛇の挿話）',a:'旧約聖書',conf:'koushiki',
+    n:'n-bunaは実際に見た蛇の鱗の美しさから着想し、聖書の「知恵の実」を「知への欲求」の比喩と解釈。「へびが春に目覚め世界を知る歌」と語る。よもぎ・カタバミなど春の季語を配す。'}],
+  places:[],
+  theory:{koushiki:['アニメ『チ。』後半クールED主題歌。旧約聖書の「知恵の実」がモチーフ（n-buna言及）。'],
+    yuuryoku:['「チ。」二部作EDとして「アポリア」と対をなし、知ることの罪と歓びを蛇に託す読み。'],
+    user:['書簡の流れでは、秋の近づきと前便の「気球の詩（＝アポリア）」への言及から、その直後の一通。知識欲は元稹「離思」など海外の詩にまで及ぶが、同時に「穴が空いたような」欠落感に気づき始める（物語タブ「書簡の時系列」参照）。']}},
+
+ {id:'f451',title:'451',reading:'',album:'幻燈',albumYear:'幻燈 #7',bpm:90,key:'Db',season:'autumn',
+  tieup:'',
+  axes:{t:.6,e:.5}, motifs:['本','焚書','火','言葉'],
+  lyric:'451',
+  works:[{t:'華氏451度',a:'レイ・ブラッドベリ（小説）',conf:'yuuryoku',
+    n:'曲名「451」は紙が発火する華氏451度＝焚書を象徴する数値と一致。書物と思考が焼かれる世界を描き、原作の焚書社会のテーマと呼応する。※題名一致が根拠のファン考察で、n-buna本人の名指しは未確認。'}],
+  places:[],
+  theory:{koushiki:['音楽画集『幻燈』収録の文学オマージュ曲。'],
+    yuuryoku:['ブラッドベリ『華氏451度』が下敷きとされる。言葉を奪われてなお守ろうとする意志の歌として読まれる。'],
+    user:[]}},
+
+ {id:'yukiguni',title:'雪國',reading:'ゆきぐに',album:'幻燈',albumYear:'幻燈 #5',bpm:70,key:'F',season:'winter',
+  tieup:'',
+  axes:{t:.7,e:.28}, motifs:['雪','冬','孤独','儚さ'],
+  lyric:'雪國',
+  works:[{t:'雪国',a:'川端康成（小説）',conf:'yuuryoku',
+    n:'曲名が川端康成の代表作『雪国』と一致。雪深い温泉町を舞台に儚く報われぬ情を描いた原作の情景と重なる。※題名一致が根拠のファン考察で、本人の名指しは未確認。'}],
+  places:[{ref:'echigoyuzawa'}],
+  theory:{koushiki:['音楽画集『幻燈』収録の文学オマージュ曲。'],
+    yuuryoku:['川端康成『雪国』が下敷きとされる。関係が静かに凍りつく内面を、雪の情景に託して読まれる。'],
+    user:[]}},
+
+ {id:'morten',title:'さよならモルテン',reading:'さよならもるてん',album:'幻燈',albumYear:'幻燈 #12',bpm:130,key:'B',season:'autumn',
+  tieup:'',
+  axes:{t:.5,e:.55}, motifs:['旅','別れ','鳥','北欧'],
+  lyric:'さよならモルテン',
+  works:[{t:'ニルスのふしぎな旅',a:'セルマ・ラーゲルレーヴ（小説）',conf:'yuuryoku',
+    n:'「モルテン」はニルスと空を旅する飼いガチョウの名。少年の旅立ちと別れの物語に重ね、旅の終わり＝別れを歌うと読まれる。スウェーデン文学で二部作の北欧とも響き合う。※本人の名指しは未確認。'}],
+  places:[],
+  theory:{koushiki:['音楽画集『幻燈』収録の文学オマージュ曲。'],
+    yuuryoku:['ラーゲルレーヴ『ニルスのふしぎな旅』のガチョウ「モルテン」への別れとして読まれる。'],
+    user:[]}},
+
+ {id:'isana',title:'いさな',reading:'いさな',album:'幻燈',albumYear:'幻燈 #13',bpm:75,key:'F',season:'summer',
+  tieup:'',
+  axes:{t:.5,e:.4}, motifs:['海','鯨','旅','夏'],
+  lyric:'いさな',
+  works:[{t:'白鯨',a:'ハーマン・メルヴィル（小説）',conf:'yuuryoku',
+    n:'「いさな（勇魚）」は鯨の古称。巨鯨を追う航海のイメージからメルヴィル『白鯨』が下敷きとされ、画集内で「老人と海」と鏡像をなすとの読みも。※題名・主題の連想が根拠のファン考察。'}],
+  places:[],
+  theory:{koushiki:['音楽画集『幻燈』収録の文学オマージュ曲。「いさな＝鯨」の古称を題にする。'],
+    yuuryoku:['海と鯨をめぐる航海の歌。ヘミングウェイ「老人と海」と対をなすとも読まれる。'],
+    user:[]}},
+
+ {id:'utakaki',title:'詩書きとコーヒー',reading:'うたかきとこーひー',album:'だから僕は音楽を辞めた',albumYear:'だから僕は音楽を辞めた #4',bpm:180,key:'F#',season:'summer',
+  tieup:'',
+  axes:{t:.5,e:.6}, motifs:['珈琲','詩','手紙','エイミー'],
+  lyric:'詩書きとコーヒー',
+  works:[],
+  places:[],
+  theory:{koushiki:['アルバム「だから僕は音楽を辞めた」収録。青年エイミー視点の一曲で、『エルマ』の「雨とカプチーノ」（エルマ視点）と珈琲のモチーフで対をなす。'],
+    yuuryoku:['詩を書く行為とコーヒーの苦さに、創作と生活の狭間で揺れるエイミーの心情が滲む。'],
+    user:[]}},
+
+ {id:'kazewo',title:'風を食む',reading:'かぜをはむ',album:'創作',albumYear:'創作 #4',bpm:90,key:'Eb',season:'autumn',
+  tieup:'TBS系「news23」エンディングテーマ',
+  axes:{t:.5,e:.4}, motifs:['風','都市','消費','諦観'],
+  lyric:'風を食む',
+  works:[],
+  places:[],
+  theory:{koushiki:['報道番組「news23」エンディングテーマとして書き下ろされた楽曲。'],
+    yuuryoku:['「風を食む」＝実体のないもので心を満たすこと。消費社会と都市生活への静かな諦観として読まれる。'],
+    user:[]}},
+
+ {id:'tousaku',title:'盗作',reading:'とうさく',album:'盗作',albumYear:'盗作 #9',bpm:100,key:'C#',season:'winter',
+  tieup:'',
+  axes:{t:.75,e:.5}, motifs:['盗み','創作','夜','告白'],
+  lyric:'盗作',
+  works:[{t:'小説『盗作』（初回盤同梱）',a:'n-buna（自作小説）',conf:'koushiki',
+    n:'初回盤に約130pの小説を同梱したコンセプト作の表題曲。n-bunaが「アルバム全体を表した曲」と語る総括曲で、音楽を盗む男の告白と直結する。'},
+   {t:'「Life imitates art…」／『ドリアン・グレイの肖像』',a:'オスカー・ワイルド（評論・小説）',conf:'yuuryoku',
+    n:'ワイルドの名言「人生は芸術を模倣する」や『ドリアン・グレイの肖像』を引くとされ、二部作以来の思想と接続する。楽曲にはムソルグスキー「展覧会の絵」やサティ「ジムノペディ」など、"音を盗む"引用も織り込まれると考察される。'}],
+  places:[],
+  theory:{koushiki:['3rdフルアルバム『盗作』の表題曲。同梱小説の物語を束ねる中核。'],
+    yuuryoku:['「本物」を作れぬ者が他者の音を盗む――創作の業と自己嫌悪を見つめると読まれる。'],
+    user:[]}},
+
+ {id:'hirudombi',title:'昼鳶',reading:'ひるとんび',album:'盗作',albumYear:'盗作 #2',bpm:125,key:'D#m',season:'summer',
+  tieup:'',
+  axes:{t:.35,e:.6}, motifs:['盗み','嫉妬','昼','夏'],
+  lyric:'昼鳶',
+  works:[],
+  places:[],
+  theory:{koushiki:['アルバム『盗作』収録。「昼鳶」は白昼に忍び込む盗人（空き巣）を指す隠語で、アルバムの「音を盗む男」の設定に沿う。'],
+    yuuryoku:['嫉妬と創作への渇望を、躍動するスラップのサウンドに乗せて描くと読まれる。','特徴的なスラップギターは、ジャスティン・キング「phunkdified」を想起させる――"音を盗む"アルバムに呼応する引用との見方もある。'],
+    user:[]}},
+
+ {id:'taiyou',title:'太陽',reading:'たいよう',album:'二人称',albumYear:'二人称 #7',bpm:80,key:'A',season:'summer',
+  tieup:'映画『正体』主題歌',
+  axes:{t:.3,e:.5}, motifs:['太陽','光','蝶','祈り'],
+  lyric:'太陽',
+  works:[],
+  places:[],
+  theory:{koushiki:['横浜流星主演・映画『正体』（原作：染井為人）の書き下ろし主題歌。n-bunaは「陽の光を蝶の羽根に見立てて詩を書いた」とコメント。'],
+    yuuryoku:['逃亡の果てに人を信じることの光を、太陽と讃美歌のイメージで描くと読まれる。'],
+    user:['書簡の流れでは、先生から与えられた「太陽」というテーマに初めて苦戦する段階。萩原朔太郎を思わせる「不変なもの」への憧れが芽生える一通と読める（物語タブ「書簡の時系列」参照）。']}},
+
+ {id:'wasurete',title:'忘れてください',reading:'わすれてください',album:'二人称',albumYear:'二人称 #9',bpm:78,key:'C',season:'winter',
+  tieup:'ドラマ『GO HOME』主題歌',
+  axes:{t:.7,e:.35}, motifs:['記憶','喪失','別れ','名前'],
+  lyric:'忘れてください',
+  works:[],
+  places:[],
+  theory:{koushiki:['ドラマ『GO HOME〜警視庁身元不明人相談室〜』主題歌。身元不明の死者を扱う物語に寄り添う。'],
+    yuuryoku:['「忘れてください」という願いの裏の、忘れられたくない心。記憶と存在証明を主題に読まれる。'],
+    user:['『二人称』を書簡として読むと、びわの実の初夏の描写から、北原白秋の短歌に触発されて詩を書き始めた〈最初期の一通〉と位置づけられる（物語タブ「書簡の時系列」参照）。']}},
+
+ {id:'goutou',title:'強盗と花束',reading:'ごうとうとはなたば',album:'創作',albumYear:'創作 #1',bpm:214,key:'F',season:'spring',
+  tieup:'',
+  axes:{t:.45,e:.85}, motifs:['盗み','花','衝動','別れ'],
+  lyric:'強盗と花束',
+  works:[],
+  places:[],
+  theory:{koushiki:['EP『創作』の冒頭曲。疾走感あるバンドサウンド。'],
+    yuuryoku:['妻の死を前にした「音楽泥棒」が奔走する物語とされ、『盗作』の主人公像と地続きに読まれる。'],
+    user:[]}},
+
+ {id:'gogatsu',title:'五月は花緑青の窓辺から',reading:'ごがつははなろくしょうのまどべから',album:'だから僕は音楽を辞めた',albumYear:'だから僕は音楽を辞めた #8',bpm:180,key:'Dm',season:'spring',
+  tieup:'',
+  axes:{t:.55,e:.62}, motifs:['花緑青','毒','エイミー','五月','別れ'],
+  lyric:'五月は花緑青の窓辺から',
+  works:[],
+  places:[],
+  theory:{koushiki:['アルバム『だから僕は音楽を辞めた』収録。青年エイミーの物語を構成する一曲。'],
+    yuuryoku:['題の「花緑青」は、かつて絵の具に使われた毒性の緑の顔料（銅とヒ素の化合物＝パリスグリーン）。芸術に殉じる者の色として、エイミーがこれをあおって自ら命を絶つという結末の伏線と読まれる、二部作の核心に触れる一曲。「ノーチラス」のMVの情景とも接続する。'],
+    user:[]}},
+
+ {id:'kitsutsuki',title:'啄木鳥',reading:'きつつき',album:'二人称',albumYear:'二人称 #17',bpm:70,key:'Bb',season:'autumn',
+  tieup:'',
+  axes:{t:.5,e:.33}, motifs:['石川啄木','短歌','鳥','言葉','引用'],
+  lyric:'啄木鳥',
+  works:[{t:'一握の砂',a:'石川啄木（歌集）',conf:'yuuryoku',
+    n:'「啄木鳥（きつつき）」の語に、歌人・石川啄木の名が畳み込まれている。啄木の第一歌集『一握の砂』が下敷きとされ、アルバム『二人称』の公式トレーラーにも同書が映る。木を啄む鳥に、言葉を刻む詩人を重ねる掛詞の一曲。'}],
+  places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['題「啄木鳥」に石川啄木の名を掛け、歌集『一握の砂』を下敷きにすると読まれる（掛詞＋公式トレーラーに映る書物が根拠）。生活の哀歓を三行で綴った啄木の短歌の気配を宿す。'],
+    user:[]}},
+
+ {id:'souchou',title:'早朝、郵便受け',reading:'そうちょう、ゆうびんうけ',album:'二人称',albumYear:'二人称 #1',bpm:71,key:'C',season:'spring',
+  tieup:'', axes:{t:.12,e:.24}, motifs:['インスト','手紙','朝','書簡'], lyric:'早朝、郵便受け',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』の冒頭を飾るインストゥルメンタル。'],
+    yuuryoku:['生活音を織り込み、郵便受け＝往復書簡の始まりを告げる導入。以降の楽曲を「手紙」として聴かせる幕開けと読まれる。'],
+    user:[]}},
+
+ {id:'kumoninaru',title:'雲になる',reading:'くもになる',album:'二人称',albumYear:'二人称 #2',bpm:200,key:'Bbm',season:'spring',
+  tieup:'', axes:{t:.4,e:.72}, motifs:['変身','雲','水','旅立ち'], lyric:'雲になる',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['雲→雨→海→雲と巡る水の循環に、「ここではないどこかへ」という変身願望を重ねると読まれる。特定の文学的引用元は確認されていない。'],
+    user:[]}},
+
+ {id:'hanamo',title:'花も騒めく',reading:'はなもざわめく',album:'二人称',albumYear:'二人称 #3',bpm:160,key:'Eb',season:'summer',
+  tieup:'', axes:{t:.4,e:.6}, motifs:['万葉集','夏','風','変身','引用'], lyric:'花も騒めく',
+  works:[{t:'万葉集（「白妙」などの古典和歌語彙）',a:'万葉集（和歌）',conf:'yuuryoku',
+    n:'「白妙」は万葉集に頻出する語（楮の白布）。近代文学から古典和歌へと引用の領域を広げた一曲とされ、公式トレーラーにも万葉集が映る。夏の到来を寿ぐ作中詩と読まれる。'}],
+  places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['万葉集の語彙を織り込み、風に焼かれる受身から「夏風になりたい」という変身願望への転換を描くと読まれる。'],
+    user:[]}},
+
+ {id:'mashou',title:'魔性',reading:'ましょう',album:'二人称',albumYear:'二人称 #4',bpm:120,key:'Ebm',season:'autumn',
+  tieup:'', axes:{t:.6,e:.55}, motifs:['在原業平','赤','真贋','引用'], lyric:'魔性',
+  works:[{t:'「ちはやぶる神代も聞かず竜田川…」（百人一首）',a:'在原業平（和歌）',conf:'yuuryoku',
+    n:'業平の名歌の結び「〜とは」を命令形「くくれ」に改変して引用するとされる。竜田川を染める「赤」を、善悪・真贋の境界を溶かす力に見立て、オマージュと盗用を「見間違える」創作論を描く。'}],
+  places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['在原業平の和歌を改変引用し、赤に境界を無効化する「魔性」を託すと読まれる。連動小説の一封に対応するとの考察も。'],
+    user:[]}},
+
+ {id:'playsick',title:'プレイシック',reading:'ぷれいしっく',album:'二人称',albumYear:'二人称 #5',bpm:90,key:'Db',season:'summer',
+  tieup:'ダイハツ「ムーヴ キャンバス ストライプス」CMソング',
+  axes:{t:.35,e:.5}, motifs:['夏','仮病','日常','レモン色'], lyric:'プレイシック',
+  works:[], places:[],
+  theory:{koushiki:['ダイハツ「ムーヴ キャンバス ストライプス」CMソング。アルバム『二人称』収録。'],
+    yuuryoku:['題は英語 play sick＝「仮病を使う」。清涼な夏の曲調に、気だるさとささやかな逃避を忍ばせると読まれる。'],
+    user:[]}},
+
+ {id:'postharu',title:'ポスト春',reading:'ぽすとはる',album:'二人称',albumYear:'二人称 #6',bpm:160,key:'Ab',season:'spring',
+  tieup:'', axes:{t:.4,e:.55}, motifs:['手紙','春','言い換え','引用'], lyric:'ポスト春',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['題「ポスト春」は、春の後／ポストモダン的な春／郵便（ポスト）で届く春、と多義に読める。書簡構造に重ね、浄化された言葉の裏の怒りと諦念を突くと解釈される。'],
+    user:[]}},
+
+ {id:'rubato',title:'ルバート',reading:'るばーと',album:'二人称',albumYear:'二人称 #12',bpm:100,key:'Eb',season:'winter',
+  tieup:'', axes:{t:.7,e:.4}, motifs:['萩原朔太郎','月','自由','引用'], lyric:'ルバート',
+  works:[{t:'『月に吠える』（萩原朔太郎）／音楽用語 rubato',a:'萩原朔太郎（詩集）ほか',conf:'yuuryoku',
+    n:'題「ルバート（rubato）」は自由な緩急を指す音楽用語で、伊語「rubare（盗む）」の受動＝「盗まれた」の掛詞とも読める。萩原朔太郎『月に吠える』の、月を見上げる病んだ犬のイメージを引くとされる。'}],
+  places:[],
+  theory:{koushiki:['アルバム『二人称』収録（先行して発表された楽曲）。'],
+    yuuryoku:['「奪われた自由な鼓動」という両義を軸に、周囲へ合わせて過去を否定し続ける葛藤を描くと読まれる。'],
+    user:[]}},
+
+ {id:'kasou',title:'火葬',reading:'かそう',album:'二人称',albumYear:'二人称 #13',bpm:115,key:'C#m',season:'winter',
+  tieup:'', axes:{t:.75,e:.5}, motifs:['創作','火','空虚','信仰'], lyric:'火葬',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['「創作とは何か」を主題に、空虚さと信仰のなさを見つめ、自らを焼べてでも書き続ける覚悟を描くと読まれる。特定の文学的下敷きは確認されていない。'],
+    user:[]}},
+
+ {id:'umeki',title:'うめき',reading:'うめき',album:'二人称',albumYear:'二人称 #16',bpm:100,key:'Eb',season:'spring',
+  tieup:'', axes:{t:.6,e:.4}, motifs:['桜','ピアノ','喪失'], lyric:'うめき',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』収録。'],
+    yuuryoku:['ピアノを主体に、散る桜を思わせる情景を綴る作中詩として読まれる。特定の詩人・作品との対応は確認されていない。'],
+    user:[]}},
+
+ {id:'gekkouyoku',title:'月光浴',reading:'げっこうよく',album:'二人称',albumYear:'二人称 #19',bpm:94,key:'B',season:'winter',
+  tieup:'劇場アニメ『大雪海のカイナ ほしのけんじゃ』主題歌',
+  axes:{t:.92,e:.35}, motifs:['月','時間','光'], lyric:'月光浴',
+  works:[], places:[],
+  theory:{koushiki:['劇場アニメ『大雪海のカイナ ほしのけんじゃ』主題歌（2023年発表）。アルバム『二人称』に収録。'],
+    yuuryoku:['「年月の中で過ごす時間を月光浴に例えた」曲で、移ろう時間の蓄積を主題にすると読まれる。'],
+    user:[]}},
+
+ {id:'kai',title:'櫂',reading:'かい',album:'二人称',albumYear:'二人称 #21',bpm:80,key:'Eb',season:'winter',
+  tieup:'', axes:{t:.6,e:.45}, motifs:['創作','怒り','旅立ち','青い炎'], lyric:'櫂',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』の終盤に置かれた一曲。'],
+    yuuryoku:['引用を創作の核としてきたヨルシカが「引用のない曲」を書いたとされる転換点。他者の言葉を糧にしてきた少年が、ついに自分自身の声（静かに燃える青い炎）へ漕ぎ出す到達点として読まれる。'],
+    user:[]}},
+
+ {id:'umihe',title:'海へ',reading:'うみへ',album:'二人称',albumYear:'二人称 #22',bpm:84,key:'C',season:'winter',
+  tieup:'', axes:{t:.72,e:.3}, motifs:['海','終曲','別れ'], lyric:'海へ',
+  works:[], places:[],
+  theory:{koushiki:['アルバム『二人称』の最終曲。ギター主体の小編成で静かに結ばれる。'],
+    yuuryoku:['「残像だけ」を残して物語を閉じる終曲。海＝ヨルシカが繰り返し還る場所へ、そっと送り出すように置かれると読まれる。'],
+    user:[]}},
+
+ {id:'padodou',title:'パドドゥ',reading:'ぱどぅどぅ',album:'幻燈',albumYear:'幻燈 #8',bpm:90,key:'C',season:'winter',
+  tieup:'',
+  axes:{t:.5,e:.4}, motifs:['インスト','芥川龍之介','舞踏','引用'],
+  lyric:'パドドゥ',
+  works:[{t:'『舞踏会』',a:'芥川龍之介（小説）',conf:'yuuryoku',
+    n:'題「パ・ド・ドゥ（pas de deux）」は二人で踊るバレエ用語。芥川龍之介『舞踏会』（鹿鳴館の舞踏会で少女と仏人士官が踊る短編）が元ネタとされる。『幻燈』のインストゥルメンタルで、二人の舞踏の情景を音で描く。'}],
+  places:[],
+  theory:{koushiki:['音楽画集『幻燈』収録のインストゥルメンタル。'],
+    yuuryoku:['芥川龍之介『舞踏会』を下敷きに、鹿鳴館の一夜の華やぎと儚さを器楽で描くと読まれる。'],
+    user:[]}},
+
+ {id:'akane',title:'茜',reading:'あかね',album:'（シングル）',albumYear:'劇場版『僕の心のヤバイやつ』主題歌',bpm:120,key:'Dm',season:'autumn',
+  tieup:'劇場版『僕の心のヤバイやつ』主題歌',
+  axes:{t:.78,e:.42}, motifs:['島崎藤村','夕暮れ','初恋','赤'],
+  lyric:'茜',
+  works:[{t:'『若菜集』（「初恋」など）',a:'島崎藤村（詩集）',conf:'yuuryoku',
+    n:'夕映えの色「茜」を題に、島崎藤村の第一詩集『若菜集』をモチーフとする。公式サイトの歌詞では「知るや君」の段落の行頭に字下げが施され、藤村の原文の組版へのリスペクトが見て取れる、と指摘される。'}],
+  places:[],
+  theory:{koushiki:['劇場版『僕の心のヤバイやつ』主題歌。'],
+    yuuryoku:['TVアニメ版OP「斜陽」（太宰治）と対をなす〈姉妹曲〉として読まれる。ともに「僕の心のヤバイやつ」のタイアップで、沈みゆく夕日の色と近代文学を重ねる。'],
+    user:[]}},
+];
+
+/* ── 全収録曲（アルバムのみ収録・インスト含む）。[題,アルバム,トラック,BPM,Key,インスト?]
+   詳細注釈のある曲は上のRICHを使い、それ以外はここから軽量エントリを自動生成する。
+   BPM/Keyはユーザー提供のマスター表に準拠。座標はBPM(高揚)＋題名ハッシュ(時間)から自動配置。 */
+const FULL=[
+ ['夏陰、ピアノを弾く','夏草が邪魔をする',1,160,'Eb',1],['カトレア','夏草が邪魔をする',2,160,'Bm'],['言って。','夏草が邪魔をする',3,180,'C'],['あの夏に咲け','夏草が邪魔をする',4,160,'D'],['飛行','夏草が邪魔をする',5,100,'G',1],['靴の花火','夏草が邪魔をする',6,120,'G'],['雲と幽霊','夏草が邪魔をする',7,85,'A'],['前世','夏草が邪魔をする',8,138,'D',1],
+ ['負け犬にアンコールはいらない','負け犬にアンコールはいらない',1,190,'C'],['爆弾魔','負け犬にアンコールはいらない',2,170,'Db'],['ヒッチコック','負け犬にアンコールはいらない',3,181,'Fm'],['落下','負け犬にアンコールはいらない',4,107,'D',1],['準透明少年','負け犬にアンコールはいらない',5,195,'D'],['ただ君に晴れ','負け犬にアンコールはいらない',6,140,'F'],['冬眠','負け犬にアンコールはいらない',7,180,'G#m'],['夏、バス停、君を待つ','負け犬にアンコールはいらない',8,134,'D',1],
+ ['8/31','だから僕は音楽を辞めた',1,140,'D',1],['藍二乗','だから僕は音楽を辞めた',2,210,'F#'],['八月、某、月明かり','だから僕は音楽を辞めた',3,220,'E'],['詩書きとコーヒー','だから僕は音楽を辞めた',4,180,'F#'],['7/13','だから僕は音楽を辞めた',5,90,'E',1],['踊ろうぜ','だから僕は音楽を辞めた',6,190,'A#m'],['六月は雨上がりの街を書く','だから僕は音楽を辞めた',7,80,'Db'],['五月は花緑青の窓辺から','だから僕は音楽を辞めた',8,180,'Dm'],['夜紛い','だから僕は音楽を辞めた',9,180,'C'],['5/6','だから僕は音楽を辞めた',10,79,'A',1],['パレード','だから僕は音楽を辞めた',11,110,'D'],['エルマ','だから僕は音楽を辞めた',12,130,'Bb'],['4/10','だから僕は音楽を辞めた',13,170,'D',1],['だから僕は音楽を辞めた','だから僕は音楽を辞めた',14,125,'E'],
+ ['車窓','エルマ',1,140,'Db',1],['憂一乗','エルマ',2,130,'Ab'],['夕凪、某、花惑い','エルマ',3,220,'C#'],['雨とカプチーノ','エルマ',4,100,'B'],['湖の街','エルマ',5,160,'Ab',1],['神様のダンス','エルマ',6,184,'C'],['雨晴るる','エルマ',7,105,'Eb'],['歩く','エルマ',8,200,'D'],['心に穴が空いた','エルマ',9,199,'F#'],['森の教会','エルマ',10,80,'G',1],['声','エルマ',11,110,'Db'],['エイミー','エルマ',12,125,'Bb'],['海底、月明かり','エルマ',13,58,'C',1],['ノーチラス','エルマ',14,80,'C#'],
+ ['音楽泥棒の自白','盗作',1,47,'C#',1],['昼鳶','盗作',2,125,'D#m'],['春ひさぎ','盗作',3,95,'Am'],['青年期、空き巣','盗作',5,119,'B',1],['レプリカント','盗作',6,190,'F'],['花人局','盗作',7,125,'C#'],['朱夏期、音楽泥棒','盗作',8,61,'D',1],['盗作','盗作',9,100,'C#'],['思想犯','盗作',10,200,'F'],['逃亡','盗作',11,106,'D'],['幼年期、思い出の中','盗作',12,67,'D',1],['夜行','盗作',13,85,'C#'],['花に亡霊','盗作',14,90,'E'],
+ ['強盗と花束','創作',1,214,'F'],['春泥棒','創作',2,125,'F'],['創作','創作',3,165,'Gb',1],['風を食む','創作',4,90,'Eb'],['嘘月','創作',5,80,'Bm'],
+ ['夏の肖像','幻燈',1,120,'Bm'],['都落ち','幻燈',2,120,'Eb'],['ブレーメン','幻燈',3,95,'D'],['チノカテ','幻燈',4,85,'Db'],['雪國','幻燈',5,70,'F'],['月に吠える','幻燈',6,120,'Gm'],['451','幻燈',7,90,'Db'],['パドドゥ','幻燈',8,90,'C',1],['又三郎','幻燈',9,202,'Em'],['老人と海','幻燈',11,120,'F'],['さよならモルテン','幻燈',12,130,'B'],['いさな','幻燈',13,75,'F'],['左右盲','幻燈',14,76,'D'],['アルジャーノン','幻燈',15,72,'C'],['第一夜','幻燈',16,75,'Bb'],['第二夜','幻燈',17,100,'Gb',1],['第三夜','幻燈',18,209,'Cm',1],['第四夜','幻燈',19,113,'Am',1],['第五夜','幻燈',20,182,'C',1],['第六夜','幻燈',21,69,'C',1],['第七夜','幻燈',22,117,'D',1],['第八夜','幻燈',23,96,'Dm',1],['第九夜','幻燈',24,95,'D',1],['第十夜','幻燈',25,81,'C',1],
+ ['早朝、郵便受け','二人称',1,71,'C',1],['雲になる','二人称',2,200,'Bbm'],['花も騒めく','二人称',3,160,'Eb'],['魔性','二人称',4,120,'Ebm'],['プレイシック','二人称',5,90,'Db'],['ポスト春','二人称',6,160,'Ab'],['太陽','二人称',7,80,'A'],['晴る','二人称',8,204,'D'],['忘れてください','二人称',9,78,'C'],['修羅','二人称',10,100,'B'],['火星人','二人称',11,100,'E'],['ルバート','二人称',12,100,'Eb'],['火葬','二人称',13,115,'C#m'],['アポリア','二人称',14,115,'D'],['へび','二人称',15,86,'F#m'],['うめき','二人称',16,100,'Eb'],['啄木鳥','二人称',17,70,'Bb'],['月光浴','二人称',19,94,'B'],['千鳥','二人称',20,120,'Bb'],['櫂','二人称',21,80,'Eb'],['海へ','二人称',22,84,'C'],
+ ['斜陽','（シングル）',1,124,'C'],['茜','（シングル）',2,120,'Dm'],['テレパス','（シングル）',3,140,'E'],
+];
+function _h(str){let h=0;for(let i=0;i<str.length;i++)h=(h*31+str.charCodeAt(i))>>>0;return h;}
+const _rich=new Set(RICH.map(s=>s.title));
+const _SEA=['spring','summer','autumn','winter'];
+const light=FULL.filter(r=>!_rich.has(r[0])).map((r,idx)=>{
+  const title=r[0],album=r[1],no=r[2],bpm=r[3],key=r[4],inst=r[5],h=_h(title);
+  return {id:'x'+idx+'_'+(h%9999),title,reading:'',album,albumYear:album+' #'+no,bpm,key,
+    season:_SEA[h%4],tieup:'',inst:!!inst,
+    axes:{t:(h%997)/997,e:Math.max(.12,Math.min(.92,(bpm-55)/175))},
+    motifs:inst?['インスト']:[],
+    lyric:title,works:[],places:[],
+    theory:{koushiki:[inst?'アルバム収録のインストゥルメンタル曲。':'アルバム収録曲。詳細な考察は今後追記。'],yuuryoku:[],user:[]}};
+});
+const SONGS=[...RICH,...light];
+
+/* 聖地・地点（複数曲で共有）。conf: koushiki=公式/原作の舞台 / yuuryoku=有力な聖地・情景 / user=ファン考察
+   多くはファンの聖地巡礼まとめ（MV・ジャケット背景の同定）に基づく。 */
+const PLACES={
+ iwate:{name:'花巻・岩手（宮沢賢治の郷）',lat:39.3891,lng:141.1163,conf:'koushiki',
+   note:'宮沢賢治の故郷。『風の又三郎』の舞台が「又三郎」の原風景であり、「千鳥」の聖地として新花巻駅も挙げられる。ヨルシカが最も多く引く作家・賢治の地。'},
+ higashifushimi:{name:'東伏見〜小平・富士見通り（東京都西東京市〜小平市）',lat:35.7266,lng:139.5636,conf:'koushiki',
+   note:'「八月、某、月明かり」の歌詞に登場する実在地名。東伏見の高架橋・小平・富士見通りと商店街。西武新宿線沿線で、n-bunaが実際に住み、月明かりの下を自転車で走った実体験が元だと本人が語る。'},
+ jonkoping:{name:'ヨンショーピン（スウェーデン・ヴェッテルン湖畔）',lat:57.7826,lng:14.1618,conf:'koushiki',
+   note:'インスト曲「湖の街」の由来地。ヴェッテルン湖の南端の街。n-buna自身が現地で宿泊し、録音した環境音が曲に使われている。'},
+ lapland:{name:'ラップランド／キルナ（スウェーデン北極圏）',lat:67.8558,lng:20.2253,conf:'koushiki',
+   note:'「八月、某、月明かり」の歌詞に地名「キルナ」として登場（北極圏の鉱業都市）。n-bunaが「ノーチラス」の原風景に挙げた極北の地でもある。'},
+ lund:{name:'ルンド（スウェーデン南部）',lat:55.7047,lng:13.1910,conf:'yuuryoku',
+   note:'『エルマ』公式特設サイトが挙げる旅程の地名。大学都市。※曲単位の歌詞対応は要確認。'},
+ copenhagen:{name:'コペンハーゲン（デンマーク）',lat:55.6761,lng:12.5683,conf:'yuuryoku',
+   note:'『エルマ』公式特設サイトが挙げる旅程の地名。エルマの旅がスウェーデン外へ及ぶ点。※曲単位の歌詞対応は要確認。'},
+ farosund:{name:'フォーレスンド（スウェーデン・ゴットランド北部）',lat:57.8667,lng:19.0500,conf:'yuuryoku',
+   note:'『エルマ』公式特設サイトが挙げる旅程の地名。ゴットランド島北端の港町。※曲単位の歌詞対応は要確認。'},
+ amaharashi:{name:'雨晴海岸（富山県高岡市）',lat:36.8166,lng:137.0374,conf:'yuuryoku',
+   note:'「ただ君に晴れ」MVに登場する踏切・柵・浜辺のモデルとされる海岸。立山連峰を望む夏の海と自転車の情景。'},
+ shimonada:{name:'下灘駅（愛媛県伊予市双海町）',lat:33.6551,lng:132.5892,conf:'yuuryoku',
+   note:'瀬戸内海に面した「海に一番近い駅」の一つ。「だから僕は音楽を辞めた」MVの駅舎と夕日の景観の聖地とされる。'},
+ meganeko:{name:'女神湖（長野県立科町）',lat:36.6017,lng:138.3186,conf:'yuuryoku',
+   note:'「だから僕は音楽を辞めた」の背景映像に使われたとされる高原の湖。'},
+ showakinen:{name:'昭和記念公園（東京都立川市）',lat:35.7056,lng:139.4090,conf:'koushiki',
+   note:'「春泥棒」着想の地。n-bunaがXで、園内の欅並木を桜に見立てて詞を書いた経緯を語っている。'},
+ shirahama:{name:'白浜海岸（静岡県下田市）',lat:34.6942,lng:138.9560,conf:'yuuryoku',
+   note:'砂浜と鳥居の景観。「都落ち」の情景の聖地とされる。'},
+ sarushima:{name:'猿島（神奈川県横須賀市）',lat:35.2807,lng:139.6880,conf:'yuuryoku',
+   note:'東京湾の無人島。「パレード」MV・ライブ映像の複数箇所のモデルとされる。'},
+ kokubunniji:{name:'国分尼寺第一児童遊園（神奈川県海老名市）',lat:35.4520,lng:139.3900,conf:'yuuryoku',
+   note:'「準透明少年」に登場する遊園地の景観の聖地とされる。'},
+ teramachi:{name:'寺町京極商店街（京都市中京区）',lat:35.0083,lng:135.7660,conf:'yuuryoku',
+   note:'「言って。」に関連するとされる京都のアーケード商店街。'},
+ stockholm:{name:'ストックホルム／ガムラスタン（スウェーデン）',lat:59.3251,lng:18.0710,conf:'koushiki',
+   note:'二部作の舞台。旧市街ガムラスタンの「アイロンボーイ像」（膝を抱えて空を見上げる少年像）は『だから僕は音楽を辞めた』ジャケットに、Tyska skolgränd通り等も手帳の写真に使われた。n-buna自身がロケハンした地。'},
+ gotland:{name:'ゴットランド島・ヴィスビー（スウェーデン）',lat:57.6348,lng:18.2948,conf:'koushiki',
+   note:'『エルマ』ジャケット撮影地。城壁沿いのベンチ、クレメンス教会跡（日記に登場する教会の廃墟）などが同定されている。「心に穴が空いた」実写MVもこの島で撮影。エルマがエイミーの足跡を辿る旅の地。'},
+ visby_clemens:{name:'クレメンス教会跡（スウェーデン・ヴィスビー）',lat:57.6432,lng:18.2962,conf:'yuuryoku',
+   note:'13世紀の教会廃墟。ヴィスビー北部・植物園近く。ヨルシカ聖地巡礼ガイドが「エルマの日記に登場する教会の廃墟」として同定する、二部作の旅の情景に対応する有力スポット。'},
+ echigoyuzawa:{name:'越後湯沢（新潟県湯沢町）',lat:36.9361,lng:138.8099,conf:'user',
+   note:'川端康成『雪国』の舞台とされる雪深い温泉町。ヨルシカ「雪國」の文学モチーフとの結びつきはファン考察に基づく象徴的な配置（本人の言及や物理的な聖地化は未確認）。'},
+ tokoname:{name:'常滑・やきもの散歩道／土管坂（愛知県常滑市）',lat:34.8880,lng:136.8389,conf:'yuuryoku',
+   note:'アニメ映画『泣きたい私は猫をかぶる』の舞台となった焼き物の街。主題歌「花に亡霊」・挿入歌「夜行」の起用は公式で、常滑市もロケ地マップを制作。ファンは土管坂などを巡礼する（映画を介した聖地）。'},
+};
+
+/* ═══════════════ RENDER ═══════════════ */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+
+// tabs
+$$('.tabs button').forEach(b=>b.onclick=()=>{
+  $$('.tabs button').forEach(x=>x.classList.remove('active'));
+  $$('.view').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  $('#view-'+b.dataset.view).classList.add('active');
+  if(b.dataset.view==='atlas') setTimeout(()=>map&&map.invalidateSize(),60);
+});
+
+// motif universe
+const ALL_MOTIFS=[...new Set(SONGS.flatMap(s=>s.motifs))];
+let activeMotif=null;
+
+// ── cosmos ──
+const cosmos=$('#cosmos');
+const cosmosInner=$('#cosmosInner');
+cosmos.classList.add('igniting');
+$('#view-cosmos').classList.add('first');
+SONGS.forEach((s,i)=>{
+  const el=document.createElement('div');
+  el.className='star'; el.dataset.id=s.id;
+  el.style.left=(5+s.axes.t*90)+'%';
+  el.style.top=(7+(1-s.axes.e)*84)+'%';
+  el.style.color=SEASON[s.season];
+  el.style.animationDelay=(1.5+i*0.016)+'s'; // 星が時間差で灯る
+  el.innerHTML=`<div class="dot"></div><div class="nm">${s.title}</div>`;
+  el.onclick=(e)=>{if(!czDragged)openDetail(s.id);};
+  cosmosInner.appendChild(el);
+});
+// 演出が済んだら igniting/first を外して通常状態へ（再描画時のちらつき防止）
+setTimeout(()=>{cosmos.classList.remove('igniting');$('#view-cosmos').classList.remove('first');},4000);
+
+// ── 世界観マップのズーム／パン（拡大すると曲名が浮かぶ） ──
+let cz=1,cx=0,cy=0,czDrag=false,czDragged=false,czSX,czSY;
+function czApply(){
+  cosmosInner.style.transform=`translate(${cx}px,${cy}px) scale(${cz})`;
+  cosmos.classList.toggle('show-labels',cz>=1.7);
+  cosmos.classList.toggle('zoomed',cz>1.02);
+  const hint=$('#czHint'); if(hint) hint.style.opacity=cz>1.02?'0':'';
+}
+function czClamp(){const R=cosmos.getBoundingClientRect();const maxX=R.width*(cz-1),maxY=R.height*(cz-1);
+  cx=Math.min(0,Math.max(-maxX,cx));cy=Math.min(0,Math.max(-maxY,cy));}
+function czZoom(f,ox,oy){const nz=Math.max(1,Math.min(6,cz*f));
+  cx=ox-(ox-cx)*(nz/cz);cy=oy-(oy-cy)*(nz/cz);cz=nz;
+  if(cz<=1.001){cz=1;cx=0;cy=0;} else czClamp(); czApply();}
+$('#czIn').onclick=()=>{const R=cosmos.getBoundingClientRect();czZoom(1.4,R.width/2,R.height/2);};
+$('#czOut').onclick=()=>{const R=cosmos.getBoundingClientRect();czZoom(1/1.4,R.width/2,R.height/2);};
+$('#czReset').onclick=()=>{cz=1;cx=0;cy=0;czApply();};
+cosmos.addEventListener('wheel',e=>{e.preventDefault();const R=cosmos.getBoundingClientRect();
+  czZoom(e.deltaY<0?1.18:1/1.18,e.clientX-R.left,e.clientY-R.top);},{passive:false});
+cosmos.addEventListener('pointerdown',e=>{if(cz<=1||e.button!==0)return;e.preventDefault();czDrag=true;czDragged=false;czSX=e.clientX-cx;czSY=e.clientY-cy;try{cosmos.setPointerCapture(e.pointerId);}catch(_){}});
+cosmos.addEventListener('dragstart',e=>e.preventDefault()); // 画像/テキストのドラッグ開始を抑止
+cosmos.addEventListener('pointermove',e=>{
+  if(!czDrag)return;
+  if(e.buttons===0){czEnd();return;}           // ボタンを離していたら追従しない（取りこぼし対策）
+  const nx=e.clientX-czSX,ny=e.clientY-czSY;
+  if(Math.abs(nx-cx)+Math.abs(ny-cy)>3)czDragged=true;cx=nx;cy=ny;czClamp();czApply();});
+function czEnd(){if(!czDrag)return;czDrag=false;setTimeout(()=>czDragged=false,30);}
+cosmos.addEventListener('pointerup',czEnd);
+cosmos.addEventListener('pointercancel',czEnd);
+cosmos.addEventListener('lostpointercapture',czEnd);
+
+function buildFilters(host){
+  host.innerHTML='';
+  const all=document.createElement('button');
+  all.className='chip'+(activeMotif?'':' on'); all.textContent='すべて';
+  all.onclick=()=>{activeMotif=null;syncFilters();};
+  host.appendChild(all);
+  ALL_MOTIFS.forEach(m=>{
+    const c=document.createElement('button');
+    c.className='chip'+(activeMotif===m?' on':''); c.textContent=m;
+    c.onclick=()=>{activeMotif=activeMotif===m?null:m;syncFilters();};
+    host.appendChild(c);
+  });
+}
+function syncFilters(){
+  buildFilters($('#cosmosFilters')); buildFilters($('#songFilters'));
+  $$('.star').forEach(st=>{
+    const s=SONGS.find(x=>x.id===st.dataset.id);
+    st.classList.toggle('dim',activeMotif&&!s.motifs.includes(activeMotif));
+  });
+  renderGrid();
+}
+
+// ── album ordering ──
+const ALBUM_ORDER=['夏草が邪魔をする','負け犬にアンコールはいらない','だから僕は音楽を辞めた','エルマ','盗作','創作','幻燈','二人称','（シングル）'];
+const albumRank=s=>{const i=ALBUM_ORDER.indexOf(s.album);return i<0?99:i;};
+const trackNo=s=>{const m=(s.albumYear||'').match(/#(\d+)/);return m?+m[1]:99;};
+const byAlbum=(a,b)=>albumRank(a)-albumRank(b)||trackNo(a)-trackNo(b);
+
+// ── song search ──
+let searchQ='';
+function searchText(s){
+  const works=(s.works||[]).flatMap(w=>[w.t,w.a]);
+  const quotes=(s.quotes||[]).flatMap(w=>[w.t,w.a]);
+  const pl=(s.places||[]).map(p=>PLACES[p.ref]?PLACES[p.ref].name:'');
+  return [s.title,s.reading,s.album,s.tieup,s.shincho,...(s.motifs||[]),...works,...quotes,...pl,
+    s.rerec?s.rerec.album:''].join(' ').toLowerCase();
+}
+function matchesSearch(s){
+  if(!searchQ) return true;
+  const t=searchText(s);
+  return searchQ.split(/\s+/).filter(Boolean).every(w=>t.includes(w));
+}
+
+// ── song grid ──
+function renderGrid(){
+  const g=$('#songGrid'); g.innerHTML='';
+  const list=SONGS.filter(s=>(!activeMotif||s.motifs.includes(activeMotif))&&matchesSearch(s)).sort(byAlbum);
+  const cnt=$('#searchCount');
+  if(cnt) cnt.textContent=(activeMotif||searchQ)?`${list.length} 曲を表示中 ／ 全 ${SONGS.length} 曲`:`全 ${SONGS.length} 曲`;
+  if(!list.length){
+    g.innerHTML=`<div class="noresult">該当する楽曲が見つかりませんでした。<br>別のキーワードやモチーフでお試しください。</div>`;
+    return;
+  }
+  list.forEach(s=>{
+    const c=document.createElement('div');
+    c.className='card'; c.style.setProperty('--sc',SEASON[s.season]);
+    c.onclick=()=>openDetail(s.id);
+    const hasQuote=(s.quotes&&s.quotes.length);
+    c.innerHTML=`
+      <div class="flags">
+        ${s.works.length||hasQuote?'<i class="badge-work">原作</i>':''}
+        ${s.places.length?'<i class="badge-place">聖地</i>':''}
+        ${s.shincho?'<i class="badge-shincho">新潮文庫</i>':''}
+      </div>
+      <div class="yr">♪ ${s.key}　・　${s.bpm} BPM</div>
+      <h3>${s.title}</h3><div class="rd">${s.reading}</div>
+      <div class="al">《 ${s.album} 》${s.rerec?`　＋　《 ${s.rerec.album} 》<span class="rerecmark">Re-Rec</span>`:''}</div>
+      ${s.tieup?`<div class="tie">▸ ${s.tieup}</div>`:''}
+      <div class="mt">${s.motifs.map(m=>`<span>${m}</span>`).join('')}</div>`;
+    g.appendChild(c);
+  });
+}
+// 検索バーの配線
+(function(){
+  const inp=$('#songSearch'),box=$('#searchBox'),clr=$('#songSearchClear');
+  if(!inp) return;
+  inp.addEventListener('input',()=>{
+    searchQ=inp.value.trim().toLowerCase();
+    box.classList.toggle('has',!!inp.value);
+    renderGrid();
+  });
+  clr.addEventListener('click',()=>{inp.value='';searchQ='';box.classList.remove('has');renderGrid();inp.focus();});
+})();
+
+// ── detail modal ──
+const scrim=$('#scrim');
+function layerBlock(kind,items){
+  if(!items||!items.length) return '';
+  return `<div class="layer ${kind}"><div class="lh">${CONF[kind]}</div>
+    <ul>${items.map(t=>`<li>${t}</li>`).join('')}</ul></div>`;
+}
+
+// ── 関連する楽曲（モチーフ・原作者・聖地・アルバムの共有で結ぶ） ──
+function authorsOf(s){return [...(s.works||[]),...(s.quotes||[])].map(w=>w.a);}
+function relatedSongs(s){
+  const a1=new Set(authorsOf(s)), p1=new Set((s.places||[]).map(p=>p.ref));
+  return SONGS.filter(x=>x.id!==s.id).map(x=>{
+    let score=0; const reasons=[];
+    const sharedA=authorsOf(x).filter(a=>a1.has(a));
+    if(sharedA.length){score+=6;reasons.push('同じ原作者');}
+    const sharedP=(x.places||[]).filter(p=>p1.has(p.ref));
+    if(sharedP.length){score+=4;reasons.push('同じ聖地');}
+    const sharedM=(s.motifs||[]).filter(m=>x.motifs.includes(m));
+    if(sharedM.length){score+=sharedM.length*2;reasons.push(sharedM.slice(0,2).join('・'));}
+    if(x.album===s.album && s.album!=='（シングル）'){score+=1;reasons.push('同じ作品');}
+    return {x,score,reason:reasons[0]||''};
+  }).filter(o=>o.score>0).sort((a,b)=>b.score-a.score).slice(0,6);
+}
+
+// ── あなたの読み（この端末のブラウザ内にのみ保存。保存不可環境でもメモリで動作） ──
+const READ_KEY='memoria_reading_';
+let _memReads={};
+function getReading(id){try{return localStorage.getItem(READ_KEY+id)||_memReads[id]||'';}catch(_){return _memReads[id]||'';}}
+function setReading(id,v){
+  _memReads[id]=v;
+  try{ if(v) localStorage.setItem(READ_KEY+id,v); else localStorage.removeItem(READ_KEY+id); }catch(_){}
+}
+function saveReading(id){
+  const ta=document.getElementById('myReadArea'); if(!ta) return;
+  setReading(id, ta.value.trim());
+  const s=document.getElementById('myReadSaved'); if(s){s.classList.add('on');setTimeout(()=>s.classList.remove('on'),1800);}
+}
+function escapeHtml(t){return (t||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function openDetail(id){
+  const s=SONGS.find(x=>x.id===id);
+  const hero=SEASON[s.season];
+  const SEASON_JP={spring:'春',summer:'夏',autumn:'秋',winter:'冬・季を超えて'};
+  const lyricUrl='https://www.uta-net.com/search/?target=title&type=in&sort=&keyword='+encodeURIComponent(s.title);
+  const placeHtml=s.places.map(p=>{
+    const P=PLACES[p.ref];
+    return `<div class="placebox"><div>
+        <div class="pn">${P.name} <span class="conf ${P.conf}">${CONF[P.conf]}</span></div>
+        <div class="pd">${P.note}</div></div>
+      <button onclick="gotoPlace('${p.ref}')">地図で見る →</button></div>`;
+  }).join('') || '<div style="color:var(--ink-dim);font-size:12.5px">この曲に紐づく地点はまだ登録されていません。</div>';
+
+  const worksHtml=s.works.map(w=>`
+    <div class="work" style="border-left-color:${w.conf==='koushiki'?'var(--off)':'var(--strong)'}">
+      <div class="wt">${w.t} <span class="conf ${w.conf}">${CONF[w.conf]}</span></div>
+      <div class="wa">${w.a}</div><div class="wn">${w.n}</div></div>`).join('')
+    || '<div style="color:var(--ink-dim);font-size:12.5px">この曲に明確な原作モチーフは登録されていません。</div>';
+
+  const quotes=s.quotes||[];
+  const quotesHtml=quotes.length?`<div class="sec"><h4>歌詞の引用・本歌取り</h4>${
+    quotes.map(w=>`
+    <div class="work" style="border-left-color:${w.conf==='koushiki'?'var(--off)':'var(--strong)'}">
+      <div class="wt">${w.t} <span class="conf ${w.conf}">${CONF[w.conf]}</span></div>
+      <div class="wa">${w.a}</div><div class="wn">${w.n}</div></div>`).join('')
+  }</div>`:'';
+
+  const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent('ヨルシカ '+s.title);
+
+  const rel=relatedSongs(s);
+  const relHtml=rel.length?`<div class="sec"><h4>関連する楽曲</h4><div class="related">${
+    rel.map(o=>`<div class="relcard" style="--rc:${SEASON[o.x.season]}" onclick="openDetail('${o.x.id}')">
+      <div class="rt">${o.x.title}</div>
+      ${o.reason?`<div class="rr">▹ ${o.reason}</div>`:''}
+      <div class="rl">《 ${o.x.album} 》</div></div>`).join('')
+  }</div></div>`:'';
+
+  const savedRead=getReading(s.id);
+  const readHtml=`<div class="sec"><h4>あなたの読み</h4><div class="myread">
+    <textarea id="myReadArea" placeholder="この曲についてのあなたの解釈や思い出を書き留めておけます。">${escapeHtml(savedRead)}</textarea>
+    <div class="mr-bar">
+      <span class="mr-note">※ お使いのブラウザ内にのみ保存され、外部には送信されません。</span>
+      <span style="display:flex;align-items:center;gap:12px"><span class="mr-saved" id="myReadSaved">保存しました ✓</span>
+      <button class="mr-save" onclick="saveReading('${s.id}')">保存</button></span>
+    </div></div></div>`;
+
+  $('#detail').innerHTML=`
+    <div class="hero" style="--hero:${hero}33">
+      <button class="close" onclick="closeDetail()">×</button>
+      <div class="yr">${SEASON_JP[s.season]}</div>
+      <h2>${s.title}</h2><div class="rd">${s.reading}</div>
+      ${s.tieup?`<div class="tieup-hero">▸ ${s.tieup}</div>`:''}
+      <div class="meta">
+        <span><b>収録</b> ${s.albumYear||s.album}${s.rerec?` <span style="color:var(--strong)">／ ${s.rerec.albumYear}（Re-Rec）</span>`:''}</span>
+        <span><b>Key</b> ${s.key}</span>
+        <span><b>BPM</b> ${s.bpm}</span>
+        <span><b>季節</b> <span style="color:${hero}">●</span> ${SEASON_JP[s.season]}</span>
+      </div>
+    </div>
+    <div class="body">
+      <div class="sec"><h4>モチーフ</h4><div class="mtlist">${s.motifs.map(m=>`<span>${m}</span>`).join('')}</div></div>
+      ${s.rerec?`<div class="sec"><h4>Re-Recording（再録）</h4><div class="rerecbox"><div class="rb-albums"><b>${s.album}</b>（原曲）　→　<b>${s.rerec.album}</b>（再録）</div><div class="rb-note">${s.rerec.note}</div></div></div>`:''}
+      ${s.shincho?`<div class="sec"><h4>新潮文庫コラボ</h4><div class="shinchobox"><div class="sh-t">📖 ${s.shincho}</div><div class="sh-n">音楽画集『幻燈』の楽曲モチーフとして、新潮文庫が限定カバー本を刊行した公式コラボ作品（全6冊）の一つ。</div></div></div>`:''}
+      <div class="sec"><h4>原作・文学モチーフ</h4>${worksHtml}</div>
+      ${quotesHtml}
+      <div class="sec"><h4>聖地・地理</h4>${placeHtml}</div>
+      <div class="sec"><h4>考察レイヤー</h4>
+        ${layerBlock('koushiki',s.theory.koushiki)}
+        ${layerBlock('yuuryoku',s.theory.yuuryoku)}
+        ${layerBlock('user',s.theory.user)||'<div style="color:var(--ink-dim);font-size:12px">共有された「ユーザーの読み」はまだありません。</div>'}
+      </div>
+      ${readHtml}
+      ${relHtml}
+      <div class="sec"><h4>外部リンク</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <a class="extlink" href="${ytUrl}" target="_blank" rel="noopener">▶ 公式MVを探す（YouTube）</a>
+          <a class="extlink" href="${lyricUrl}" target="_blank" rel="noopener">♪ 歌詞を外部サイトで探す（uta-net）</a>
+        </div></div>
+    </div>`;
+  scrim.classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeDetail(){scrim.classList.remove('open');document.body.style.overflow='';}
+scrim.onclick=e=>{if(e.target===scrim)closeDetail();};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
+
+// ── leaflet atlas ──
+let map,markers={};
+function initMap(){
+  // 世界観マップと操作感を合わせる：ホイールで拡大縮小（カーソル基点・滑らか）、ドラッグでパン、＋／－は右下
+  map=L.map('map',{scrollWheelZoom:true,zoomControl:false,attributionControl:true,
+    zoomSnap:0.25,zoomDelta:0.5,wheelPxPerZoomLevel:120,
+    worldCopyJump:false,maxBounds:[[-85,-180],[85,180]],maxBoundsViscosity:1.0,minZoom:2}).setView([37.5,138],5);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  // noWrap＝世界地図を横に繰り返さない／bounds＝1枚ぶんの範囲のみタイル取得
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; OpenStreetMap &copy; CARTO',maxZoom:19,subdomains:'abcd',
+    noWrap:true,bounds:[[-85,-180],[85,180]]}).addTo(map);
+  const COLOR={koushiki:'#c98b6b',yuuryoku:'#7fae7a',user:'#8a86c9'};
+  Object.entries(PLACES).forEach(([key,P])=>{
+    const songs=SONGS.filter(s=>s.places.some(p=>p.ref===key));
+    const c=COLOR[P.conf];
+    const m=L.circleMarker([P.lat,P.lng],{radius:9,color:c,weight:2,fillColor:c,fillOpacity:.55}).addTo(map);
+    const songLinks=songs.map(s=>`<a href="#" onclick="openFromMap('${s.id}');return false;">${s.title}</a>`).join('');
+    m.bindPopup(`<div class="pop"><h4>${P.name}</h4>
+      <span class="pc" style="background:${c}22;color:${c};border:1px solid ${c}66">${CONF[P.conf]}</span>
+      <div class="songs">${songLinks||'—'}</div>
+      <div class="nt">${P.note}</div></div>`);
+    markers[key]=m;
+  });
+  buildAtlasFilters(); applyAtlasFilter();
+}
+// ── アトラス信頼度フィルタ ──
+const ATLAS_CONF=[['koushiki','公式・原作の舞台'],['yuuryoku','有力な聖地'],['user','ファン考察']];
+const ATLAS_COL={koushiki:'var(--off)',yuuryoku:'var(--strong)',user:'var(--user)'};
+let atlasOn={koushiki:true,yuuryoku:true,user:true};
+function buildAtlasFilters(){
+  const host=$('#atlasFilters'); if(!host)return; host.innerHTML='';
+  ATLAS_CONF.forEach(([k,label])=>{
+    const n=Object.values(PLACES).filter(P=>P.conf===k).length;
+    const c=document.createElement('button');
+    c.className='chip'+(atlasOn[k]?' on':'');
+    c.innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ATLAS_COL[k]};margin-right:7px;vertical-align:middle"></span>${label} <span style="opacity:.7">(${n})</span>`;
+    c.onclick=()=>{atlasOn[k]=!atlasOn[k];applyAtlasFilter();buildAtlasFilters();};
+    host.appendChild(c);
+  });
+}
+function applyAtlasFilter(){
+  Object.entries(PLACES).forEach(([key,P])=>{
+    const m=markers[key]; if(!m)return;
+    if(atlasOn[P.conf]){if(!map.hasLayer(m))m.addTo(map);}
+    else{if(map.hasLayer(m)){m.closePopup();map.removeLayer(m);}}
+  });
+}
+function gotoPlace(ref){
+  closeDetail();
+  $$('.tabs button').forEach(x=>x.classList.remove('active'));
+  $$('.view').forEach(x=>x.classList.remove('active'));
+  $('.tabs button[data-view="atlas"]').classList.add('active');
+  $('#view-atlas').classList.add('active');
+  const P=PLACES[ref];
+  if(!atlasOn[P.conf]){atlasOn[P.conf]=true;buildAtlasFilters();applyAtlasFilter();}
+  setTimeout(()=>{map.invalidateSize();map.setView([P.lat,P.lng],6,{animate:true});markers[ref].openPopup();},120);
+}
+function openFromMap(id){map.closePopup();openDetail(id);}
+
+// ── history / timeline ──
+const TL_TYPE={solo:{l:'n-buna（ソロ期）',c:'#9b8bd0'},origin:{l:'結成・由来',c:'#7fae7a'},
+  album:{l:'アルバム',c:'var(--gold)'},single:{l:'シングル',c:'var(--indigo-bright)'},
+  live:{l:'ライブ',c:'var(--summer)'},book:{l:'書籍',c:'var(--spring)'},movie:{l:'映画タイアップ',c:'var(--autumn)'}};
+const TIMELINE=[
+ {d:'2012',type:'solo',title:'n-buna、ボカロPとして活動開始',note:'ニコニコ動画に処女作「アリストラスト」を投稿。近代文学を愛する作家性で、ボカロシーンに独自の位置を築いていく。'},
+ {d:'2013',type:'solo',title:'「透明エレジー」がデイリー1位',note:'VOCALOIDデイリーランキングで1位を獲得し注目を集める。「ウミユリ海底譚」「メリュー」などの代表曲も生まれた。'},
+ {d:'2014.06.30',type:'solo',title:'カーテンコールが止む前に',note:'n-buna名義の同人1stアルバム（4月の超ボーマスで初頒布、6月に一般流通／DUED-1004）。全15曲。'},
+ {d:'2015.07.22',type:'solo',title:'花と水飴、最終電車',note:'n-buna名義のアルバム（U&R records）。ヨルシカ公式ディスコグラフィでは「1st Album」と表記される。'},
+ {d:'2016.07.06',type:'solo',title:'月を歩いている',note:'n-buna名義のアルバム（通算2nd）。さまざまな童話をモチーフにしたコンセプト作で、ヨルシカ前夜の一枚（物語タブの「番外編」に詳細）。'},
+ {d:'2017.04.21',type:'origin',title:'ヨルシカ結成',note:'n-bunaがボーカルsuisを迎えて結成。バンド名「ヨルシカ」は「雲と幽霊」の歌詞「夜しかもう眠れずに」に由来する（本人談）。ロゴは月と月が向かい合う左右対称の意匠で、時計の針にも見立てられ、「6時から夜」を表すという。'},
+ {d:'2017.06.28',type:'album',title:'夏草が邪魔をする',note:'1stミニアルバム（インディーズ／U&R records）。「言って。」「雲と幽霊」「靴の花火」など初期の代表曲を収録。'},
+ {d:'2017.07.09',type:'live',title:'1st Live「夏草が邪魔をする」',note:'新宿BLAZEで行われた初のワンマンライブ。ライブ名は1stミニアルバムに由来する。'},
+ {d:'2018.05.09',type:'album',title:'負け犬にアンコールはいらない',note:'2ndミニアルバム。輪廻転生をテーマに前作と地続きの世界。'},
+ {d:'2019.04.10',type:'album',title:'だから僕は音楽を辞めた',note:'1stフルアルバム。ユニバーサルよりメジャーデビュー。音楽を辞めた青年エイミーの物語。'},
+ {d:'2019.08.28',type:'album',title:'エルマ',note:'2ndフルアルバム。エイミーの足跡を辿る少女エルマの視点。二部作の対をなす。'},
+ {d:'2020.06',type:'movie',title:'映画『泣きたい私は猫をかぶる』',note:'「花に亡霊」主題歌／「夜行」挿入歌／「嘘月」エンドソング。'},
+ {d:'2020.06.24',type:'single',title:'思想犯',note:'配信シングル。オーウェル『1984』＋尾崎放哉。'},
+ {d:'2020.07.29',type:'album',title:'盗作',note:'3rdフルアルバム。「音楽を盗む男」のコンセプト作。初回盤に約130pの小説を同梱。'},
+ {d:'2021.01.27',type:'album',title:'創作（EP）',note:'「春」をテーマにしたEP。強盗と花束／春泥棒／創作／風を食む／嘘月。'},
+ {d:'2021.06.07',type:'single',title:'又三郎',note:'配信シングル。宮沢賢治『風の又三郎』モチーフ。'},
+ {d:'2021.08.18',type:'single',title:'老人と海',note:'配信シングル。ヘミングウェイ原作。'},
+ {d:'2021.10.06',type:'single',title:'月に吠える',note:'配信シングル。萩原朔太郎の詩集モチーフ。'},
+ {d:'2022.06.29',type:'live',title:'Live映像作品『月光』',note:'ライブ映像作品（Blu-ray/DVD）。'},
+ {d:'2022.07.04',type:'single',title:'ブレーメン',note:'配信シングル。グリム『ブレーメンの音楽師』モチーフ。'},
+ {d:'2022.07.25',type:'single',title:'左右盲',note:'映画『今夜、世界からこの恋が消えても』主題歌。'},
+ {d:'2022.08.29',type:'single',title:'チノカテ',note:'ドラマ『魔法のリノベ』主題歌。'},
+ {d:'2023.01.12',type:'single',title:'テレパス',note:'アニメ『大雪海のカイナ』OP。'},
+ {d:'2023.01.31',type:'single',title:'アルジャーノン',note:'ドラマ『夕暮れに、手をつなぐ』主題歌。'},
+ {d:'2023.04.05',type:'album',title:'幻燈（音楽画集）',note:'加藤隆の絵にスマホをかざして聴く「音楽画集」。文学オマージュ全25曲。新潮文庫と公式コラボ。'},
+ {d:'2023.05.08',type:'single',title:'斜陽',note:'アニメ『僕の心のヤバイやつ』OP。'},
+ {d:'2023.10.13',type:'single',title:'月光浴',note:'劇場アニメ『大雪海のカイナ ほしのけんじゃ』主題歌。'},
+ {d:'2023',type:'live',title:'LIVE 2023『前世』',note:'ライブツアー。'},
+ {d:'2024.01.05',type:'single',title:'晴る',note:'アニメ『葬送のフリーレン』第2クールOP。'},
+ {d:'2024.06.26',type:'single',title:'ルバート／ブレーメン（アナログ）',note:'初のアナログ盤シングル。'},
+ {d:'2024.07.13',type:'single',title:'忘れてください',note:'ドラマ『GO HOME』主題歌。'},
+ {d:'2024.10.07',type:'single',title:'アポリア',note:'アニメ『チ。—地球の運動について—』ED。'},
+ {d:'2024.11.22',type:'single',title:'太陽',note:'映画『正体』主題歌。'},
+ {d:'2024',type:'live',title:'LIVE TOUR 2024『前世』',note:'ライブツアー。'},
+ {d:'2025.01.17',type:'single',title:'へび',note:'アニメ『チ。』後半クールED。'},
+ {d:'2025.05.09',type:'single',title:'火星人',note:'アニメ『小市民シリーズ』第2期OP。'},
+ {d:'2025.08.08',type:'single',title:'修羅',note:'ドラマ『僕達はまだその星の校則を知らない』主題歌。'},
+ {d:'2025.12.22',type:'single',title:'プレイシック',note:'アルバム『二人称』先行配信。'},
+ {d:'2026.02.04',type:'single',title:'茜',note:'劇場版『僕の心のヤバイやつ』主題歌。'},
+ {d:'2026.02.26',type:'book',title:'書簡型小説『二人称』（講談社）',note:'n-buna執筆。32通の封筒からなる文芸作品。アルバムと連動。'},
+ {d:'2026.03.04',type:'album',title:'二人称',note:'5thフルアルバム（全22曲）。書簡型小説と連動。既発曲＋新曲＋「ヒッチコック」再録。'},
+ {d:'2026.04.22',type:'single',title:'あぶく',note:'アニメ『LIAR GAME』OP。'},
+];
+function renderTimeline(){
+  const host=$('#timeline'); if(!host||host.dataset.done)return; host.dataset.done='1';
+  // legend
+  $('#tlLegend').innerHTML=Object.values(TL_TYPE).map(t=>`<span><i style="background:${t.c}"></i>${t.l}</span>`).join('');
+  let curYear=null, html='';
+  TIMELINE.forEach(ev=>{
+    const y=ev.d.slice(0,4);
+    if(y!==curYear){curYear=y; html+=`<div class="tl-year">${y}</div>`;}
+    const T=TL_TYPE[ev.type];
+    html+=`<div class="tl-row" style="--tc:${T.c}">
+      <div class="tl-dot"></div>
+      <div class="tl-card">
+        <div class="tl-head"><span class="tl-date">${ev.d}</span><span class="tl-tag" style="color:${T.c};border-color:${T.c}55;background:${T.c}18">${T.l}</span></div>
+        <div class="tl-title">${ev.title}</div>
+        <div class="tl-note">${ev.note}</div>
+      </div></div>`;
+  });
+  host.innerHTML=html;
+}
+
+// ── 物語（アルバム章立て） ──
+/* prose はすべてオリジナルの解説（歌詞は非転載）。
+   confは koushiki=公式言及 / yuuryoku=有力考察 を各noteで区別。 */
+const ALBUMS=[
+ {id:'natsukusa',key:'夏草が邪魔をする',idx:'Chapter I',kind:'1st ミニアルバム',year:'2017',accent:'#4fc7c2',
+  tagline:'夏の終わりの匂いから、ヨルシカは始まった。',
+  story:[
+   'ヨルシカ初の全国流通盤。n-bunaは「まず全体のコンセプトとプロットを決め、そこへ各曲を配置していく」という作り方をこの時点から採っており、一曲ずつではなく一枚を通して聴くことで像が結ぶよう設計されている。',
+   '全体を覆うのは、過ぎ去った夏と、そこに置き去りにした誰かの面影。「言って。」と「雲と幽霊」は意図的に対をなす曲として置かれ、届かなかった言葉と、それを見送る視点が響き合う。喪失を劇的に誇張せず、日常にふとよぎる寂しさとして掬い上げる筆致が、すでにここにある。',
+   'バンド名「ヨルシカ」の由来とされる「雲と幽霊」を含め、後年まで続く〈夏・夜・喪失〉というモチーフの萌芽が、この一枚に刻まれている。'],
+  themes:['夏','喪失','幽霊','対話','日常'],
+  note:'コンセプトを軸に構成された点はn-buna本人がインタビューで言及。バンド名の由来は広く語られるが、本人の一次発言としては未確認のため「とされる」と記す。'},
+
+ {id:'makeinu',key:'負け犬にアンコールはいらない',idx:'Chapter II',kind:'2nd ミニアルバム',year:'2018',accent:'#e0a05a',
+  tagline:'負け犬たちに、それでも次の生がある。',
+  story:[
+   'テーマは明確に「生まれ変わり＝輪廻転生」。n-buna本人が、収録曲のすべてを「君と出会うまでの前世たち」と「出会ったあとの来世」として構想したと語っており、これはファンの読みではなく公式のコンセプトである。',
+   '前作『夏草が邪魔をする』とは「完全に地続き」で、そのセルフオマージュとして作られている。前作の登場人物が生まれ変わり、時間をかけて再び出会い直す――バス停などの反復するモチーフを通して、「移り変わっていく中にも変わらないものがある」という美学が描かれる。',
+   '「ただ君に晴れ」「準透明少年」「ヒッチコック」など、青春の眩しさと居心地の悪さが同居する初期の人気曲が並ぶ。届かなさや透明な存在感といった主題が、はっきりと輪郭を得ていく。'],
+  themes:['輪廻転生','再会','不変','青春','死生観'],
+  note:'「輪廻転生」を制作動機とすることはn-bunaが音楽ナタリーで明言（公式）。「爆弾魔」「ヒッチコック」は後年に再録された。'},
+
+ {id:'dakara',key:'だから僕は音楽を辞めた',idx:'Chapter III ・ 二部作 前編',kind:'1st フルアルバム',year:'2019',accent:'#7ea1e6',
+  tagline:'音楽を辞めた青年エイミーが、エルマへ贈る。',
+  story:[
+   'ユニバーサルからのメジャーデビュー作にして、ヨルシカの物語性が全面に出た最初の本格コンセプトアルバム。「音楽を辞めることにした青年（エイミー）が、エルマという女性へ向けて作った楽曲を贈る」というナラティブで、全体が「ひとりの人物が書いたもの」として統一されている。',
+   '幸福と別れ、才能への渇きと諦め――相反するものを等価に並べようとする葛藤が核にある。n-bunaは自身の思想や実体験を「極限までぶち込む」姿勢で臨み、東伏見や小平といった実在の地名が歌詞世界に織り込まれた。舞台設定のためスウェーデン・ストックホルムでロケハンし、初回盤の写真も自ら撮影している。',
+   '本作は次作『エルマ』と分かちがたい二部作の〈前編〉。青年の側から書かれた問いであり、その答えは対となるもう一冊に託されている。'],
+  themes:['音楽をやめる','青春の終わり','怒り','旅','手紙'],
+  note:'エイミー視点・実在地名の使用・スウェーデンロケハンはn-bunaがインタビューで言及（公式）。'},
+
+ {id:'elma',key:'エルマ',idx:'Chapter IV ・ 二部作 後編',kind:'2nd フルアルバム',year:'2019',accent:'#54c7bf',
+  twinBefore:'二 部 作 ── 前編「だから僕は音楽を辞めた」からの応答',
+  tagline:'彼の足跡をたどる、少女エルマの日記。',
+  story:[
+   '前作『だから僕は音楽を辞めた』への応答として書かれた〈後編〉。今度は少女エルマの視点から、エイミーが遺した作品に導かれ、彼の足跡をスウェーデンで辿っていく。各曲は前作の対応曲と鏡合わせの構造をなし、初回盤にはエルマが旅で撮った写真と、三月から九月までの日付入りの日記が同梱された。',
+   '二部作の根底にあるのは、オスカー・ワイルドの「人生は芸術を模倣する」という言葉。エルマはエイミーの作風や生き方までも模倣し、やがて自分自身の声を見つけていく。「雨とカプチーノ」は前作「詩書きとコーヒー」と、「ノーチラス」は眠りと目覚めのモチーフで、二冊は静かに呼応する。',
+   'エイミーは、芸術に殉じるように自らの生を終えた――「花緑青」という毒性の緑の絵の具をあおり、海へ向かった――と読むのが、作品に最も強く支えられた解釈だ（「五月は花緑青の窓辺から」がその伏線とされ、「ノーチラス」のMVもエルマがその情景へたどり着く描写を重ねる）。エルマは彼の足跡をたどり、物語の果てには彼の最期までも模倣しようとする。公式設定として確かなのは二人が別々の人物（青年と少女）である点で、「エイミー＝エルマ同一人物説」はむしろこの設定と食い違う。'],
+  themes:['芸術の模倣','喪失','自死','北欧の旅','応答'],
+  note:'「芸術の模倣」というコンセプトと二人が別人物である設定は公式（rockinon等）。エイミーが花緑青（毒性の緑顔料）で自死したという読みは、歌詞・物語に強く支えられた有力考察で、ノーチラスのMVとも整合する。ただしn-buna本人が結末を字義どおり明言したわけではなく、象徴的に構成されている。'},
+
+ {id:'tousaku',key:'盗作',idx:'Chapter V',kind:'3rd フルアルバム',year:'2020',accent:'#c07a4e',
+  tagline:'「本物」を作れぬ男が、音を盗む物語。',
+  story:[
+   '「音楽の盗作をする男」を主人公に据えた三枚目のフルアルバム。歌もの十編とインスト四曲からなり、初回限定盤にはn-buna自身が書き下ろした約百三十ページの小説が同梱された。楽曲と小説が互いを補い合い、盗作家の男の人生を多面的に映し出す。',
+   '制作の発端は、『エルマ』を完成させたn-bunaが抱いた「ヨルシカへの破壊衝動」「人が眉をひそめるようなものを作りたい」という思いだったという。表題曲「盗作」が全体を束ね、「昼鳶」「花人局」「思想犯」などが、盗む男の内面と彼を取り巻く世界を描き出す。',
+   '「盗作は、公言した瞬間にオマージュへ変わる」――創作と模倣、本物と偽物を隔てる曖昧な線そのものへの問いが、一枚を貫いている。初期曲「爆弾魔」がこのアルバムの世界観に合わせて再録された点も、〈創る／盗む〉という主題を映している。'],
+  themes:['盗作','模倣','破壊衝動','創作の倫理','夜'],
+  note:'同梱小説（n-buna執筆・約130p）、破壊衝動を発端とする制作背景は公式（特設サイト・音楽ナタリー）。'},
+
+ {id:'sousaku',key:'創作',idx:'Chapter VI',kind:'EP',year:'2021',accent:'#e79bb6',
+  tagline:'散る桜のように、残された時間を数える。',
+  story:[
+   '『盗作』と対をなし、同時期に制作された「もう一つの結末」。テーマは「春」で、全五曲が春の情景を分かち合う。「盗作／創作」という対の言葉どおり、芸術の盗用と独創のあいだの曖昧な境界を、今度は明るい季節の側から探っていく。',
+   'とりわけ「春泥棒」は、散っていく桜を命の残り時間に見立てた一曲として広く知られる。生と時間、そして別れが、春という季節に凝縮されている。',
+   'CD付きの盤と、あえて中身のない空パッケージの二形態でリリースされた点も、「モノとしての音楽」の意味を問うこの時期のn-bunaらしい仕掛けだった。'],
+  themes:['春','桜','時間','創作と盗作','別れ'],
+  note:'『盗作』との同時制作・対構造、二形態リリースは公式（特設サイト）。'},
+
+ {id:'gentou',key:'幻燈',idx:'Chapter VII',kind:'音楽画集',year:'2023',accent:'#d9b46a',
+  tagline:'絵にかざして聴く、文学へのオマージュ集。',
+  story:[
+   'CDを付けず、画家・加藤隆のイラストにスマートフォンのカメラをかざすと楽曲が再生される――「聴ける画集」という独特の形式をとった作品。第一章「夏の肖像」と第二章「踊る動物」に分かれ、全二十五曲が収められている。',
+   '各曲は、古今東西の文学へのオマージュとして編まれている。宮沢賢治、萩原朔太郎、ヘミングウェイ、オスカー・ワイルド、アンドレ・ジッド、そしてグリム童話――n-bunaが愛読してきた本の数々が、曲の下敷きになっている。新潮文庫との公式コラボでは、対応する六作品が限定カバーで復刊された。',
+   '既発のシングルに加え、「又三郎」「月に吠える」「老人と海」「左右盲」などが一冊に集約され、ヨルシカの〈文学〉という側面がもっとも色濃く立ちのぼる一作となっている。アルバム名「幻燈」そのものが宮沢賢治『やまなし』の一節（「二枚の青い幻燈」）に由来するとされ、締めくくりのインスト連作「第一夜」〜「第十夜」は夏目漱石『夢十夜』を踏まえると読まれている。'],
+  themes:['文学','オマージュ','画集','寓話','25曲'],
+  note:'AR形式・二章構成・全25曲・新潮文庫コラボ6作品は公式。対応作品は各曲詳細の「新潮文庫コラボ」欄を参照。アルバム名の由来（賢治『やまなし』）や「第一夜〜第十夜」＝漱石『夢十夜』はファン考察。'},
+
+ {id:'nininshou',key:'二人称',idx:'Chapter VIII',kind:'5th フルアルバム',year:'2026',accent:'#9fb8e6',
+  tagline:'三十二通の手紙が、一枚のアルバムになる。',
+  story:[
+   'n-buna自身が執筆した書簡型小説『二人称』（講談社）と連動する、約三年ぶりのフルアルバム。物語は「詩を書く少年」と「文学を教える先生」の文通として綴られ、読者は封筒を一通ずつ開封しながら物語を体験していく。文字の物語と音の物語が並走する、これまでで最も大がかりなコンセプト作だ。',
+   '全二十二曲という大きな器のなかに、「晴る」「火星人」「アポリア」といった既発曲と新曲が、物語の時系列に沿って編み直されている。約八年を経て歌い直された「ヒッチコック」の再録も収められ、時間そのものが主題として引き受けられている。',
+   '物語は「十五歳の春、詩を書く少年と、文学を教える先生の文通」として編まれ、三月から十一月へ、手紙が季節とともに進んでいく。そして全体を貫く方法こそが〈引用〉である。公式トレーラーには、万葉集や北原白秋『桐の花』、石川啄木『一握の砂』、萩原朔太郎、宮沢賢治『春と修羅』、ワイルド『サロメ』といった書物が意図して映し込まれ、少年が古今の詩を糧に言葉を育てていく過程が示される。',
+   '「二人称」というタイトルどおり、〈あなた〉へ差し向けられた言葉が全体を貫く。手紙と師弟という形式は、ヨルシカの原点にあった「届かない言葉」というモチーフへの、静かな回帰でもある。'],
+  themes:['手紙','二人称','師弟','引用','時間'],
+  note:'書簡型小説『二人称』（講談社・封筒32通ほか約170枚）との連動、全22曲、既発曲の再構成は公式（特設サイト・講談社）。トレーラーに映る書物から各曲の引用元を読み解く考察が広く行われている。',
+  flowIntro:'『二人称』は書簡型の物語と連動する。ここでは収録曲を〈一通ずつの手紙〉として並べ、季節の描写や前便への言及を手がかりに時系列を辿る「読みの一例」を示す（公式の並び順とは限らない）。',
+  flow:[
+   {id:'wasurete',title:'忘れてください',season:'初夏',reason:'びわの実という初夏の描写から。びわの実と北原白秋の短歌が結びつき、詩作のインスピレーションを得た――詩を書き始めた、いちばん初期の一通と読める。'},
+   {id:'taiyou',title:'太陽',season:'初夏〜夏',reason:'先生から与えられた「太陽」というテーマに、初めて苦戦する段階。詩作の難しさと、萩原朔太郎を思わせる「不変なもの」への憧れが芽生えていく。'},
+   {id:'aporia',title:'アポリア',season:'夏',reason:'暑さへの言及から、季節は夏へ。主題は「知ること」への渇望と焦燥。知らないことは死んでいるのと同じ――内省的・哲学的な思索がここから始まる。'},
+   {id:'hebi',title:'へび',season:'夏の終わり',reason:'秋の近づきに触れ、前便で送った「気球の詩（＝アポリア）」に言及することから、その直後の一通と分かる。知識欲は元稹「離思」など海外の詩にまで及ぶが、同時に「穴が空いたような」欠落感にも気づき始める。'},
+   {id:'shura',title:'修羅',season:'',reason:'流れが変わり、自らの内にある「静かな怒り」を告白する。以前の手紙への言及があり、文通が進んだ後の一通とみられる。「へび」で感じた穴の正体こそがこの怒りだった、とも読める。'},
+   {id:'kaseijin',title:'火星人',season:'',reason:'時候の挨拶を欠き、形式そのものが異質。強い孤独と疎外感が滲む。「へび」の欠落と「修羅」の怒りが行き着いた諦念のようで、一連の手紙の終盤に置くのが自然に思える。'},
+  ]},
+
+ {id:'tsukiwo',key:'月を歩いている',idx:'番外編',kind:'n-buna 2ndアルバム（VOCALOID）',year:'2016',accent:'#b9c3dd',
+  bonus:true, artist:'n-buna 名義（ヨルシカ結成前・ボカロP時代）',
+  tagline:'春を待つ胸が苦しい。── 童話でできた、ヨルシカ前夜。',
+  story:[
+   'ヨルシカ結成（2017年）の前年、n-bunaがボカロP名義で発表した2ndアルバム。初音ミクやGUMIらの歌声で、さまざまな童話をモチーフに一つの世界観を描くことに挑んだコンセプト作である。キャッチコピーは「春を待つ胸が苦しい。」。',
+   'n-buna曰く、当初はカフカのような文学作品も構想したが、「童話は誰もが知っていて分かりやすく、解釈や構成の自由度が高い」ことから童話を選んだという。童話の理想の世界と、寂しい「月」の世界とを対比させ、現実の醜さを見ないように理想だけを見つめる――そんな逃避と反骨が全体に流れている。',
+   '文学・物語を下敷きにコンセプトアルバムを編むこの手法は、のちのヨルシカ、とりわけエイミー／エルマ二部作や『幻燈』の文学オマージュへまっすぐ繋がっていく。まさに「夜が明ける前」の一枚だ。'],
+  themes:['童話','春','現実逃避','理想と孤独','月'],
+  tracks:[
+   {no:1,t:'モノローグ',m:'導入（インスト）',k:'inst'},
+   {no:2,t:'ルラ',m:'シンデレラ ※推定'},
+   {no:3,t:'三月と狼少年',m:'イソップ「嘘をつく子供（狼少年）」'},
+   {no:4,t:'歌う睡蓮',m:'人魚姫／セイレーン ※推定'},
+   {no:5,t:'花降らし',m:'オリジナルの情景'},
+   {no:6,t:'落花',m:'間奏（インスト）',k:'inst'},
+   {no:7,t:'泣いた振りをした',m:'童話を書く者の心情（オリジナル）'},
+   {no:8,t:'白ゆき',m:'白雪姫 ※本人明言'},
+   {no:9,t:'ラプンツェル',m:'グリム「ラプンツェル」'},
+   {no:10,t:'落陽',m:'間奏（インスト）',k:'inst'},
+   {no:11,t:'白ゆきの独白',m:'白雪姫（の独白）'},
+   {no:12,t:'セロ弾き群青',m:'宮沢賢治「セロ弾きのゴーシュ」'},
+   {no:13,t:'それでもいいよ。',m:'ヘンゼルとグレーテル ※推定'},
+   {no:14,t:'かぐや',m:'竹取物語（かぐや姫）'},
+   {no:15,t:'エピローグ',m:'アウトロ（インスト）',k:'inst'},
+   {no:16,t:'カエルのはなし',m:'n-buna 創作の童話（初回盤のみ）'},
+  ],
+  note:'2016年7月6日／U&R records、オリコン最高20位。童話をモチーフにしたコンセプト、童話採用の理由は本人が公言。曲と童話の対応は「白ゆき＝白雪姫」等が明言・準明示、ルラ＝シンデレラ等は媒体・ファン考察による推定。歌唱はボカロ（初音ミク・GUMI 他）。'},
+];
+
+function albumTracks(key){
+  const out=[];
+  SONGS.forEach(s=>{
+    if(s.album===key) out.push({s,no:trackNo(s),rr:false});
+    if(s.rerec&&s.rerec.album===key){const m=(s.rerec.albumYear||'').match(/#(\d+)/);out.push({s,no:m?+m[1]:99,rr:true});}
+  });
+  return out.sort((a,b)=>a.no-b.no);
+}
+function renderStory(){
+  const host=$('#storyList'),nav=$('#storyNav');
+  if(!host||host.dataset.done) return; host.dataset.done='1';
+  nav.innerHTML=ALBUMS.map(a=>`<button style="--ac:${a.accent}" onclick="jumpAlbum('${a.id}')">${a.key}</button>`).join('');
+  let html='';
+  ALBUMS.forEach(a=>{
+    if(a.twinBefore) html+=`<div class="twin-link">${a.twinBefore}</div>`;
+    if(a.bonus) html+=`<div class="twin-link" style="color:${a.accent}">番 外 編 ── n-buna（ヨルシカ結成前・ボカロP名義）</div>`;
+    let tracks, trackHtml;
+    if(a.tracks){ // 番外編：SONGSに無い童話トラックを直接描画
+      tracks=a.tracks;
+      trackHtml=a.tracks.map(t=>`<div class="trk trk-static${t.k==='inst'?' inst':''}">
+        <span class="tt"><span class="tn">${t.no}</span>${t.t}</span>
+        <i class="trk-motif">▹ ${t.m}</i></div>`).join('');
+    } else {
+      tracks=albumTracks(a.key);
+      trackHtml=tracks.map(o=>{
+        const s=o.s, isInst=(s.motifs||[]).includes('インスト');
+        const hasSrc=(s.works&&s.works.length)||(s.quotes&&s.quotes.length);
+        return `<div class="trk${isInst?' inst':''}" onclick="openDetail('${s.id}')" title="${s.title} を開く">
+          <span class="tn">${o.no||''}</span>${s.title}${hasSrc?' <i>原</i>':''}${o.rr?' <i style="color:var(--gold)">再</i>':''}</div>`;
+      }).join('');
+    }
+    html+=`<div class="chapter" id="ch-${a.id}" style="--ac:${a.accent};--acf:${a.accent}30">
+      <div class="ch-head">
+        <div class="ch-idx">${a.idx}</div>
+        <div class="ch-title">${a.key}</div>
+        <div class="ch-meta"><span><b>${a.year}</b></span><span>${a.kind}</span><span>全 ${tracks.length} 曲</span></div>
+        ${a.artist?`<span class="artist-badge">${a.artist}</span>`:''}
+        <div class="ch-tagline">${a.tagline}</div>
+      </div>
+      <div class="ch-body">
+        ${a.story.map(p=>`<p>${p}</p>`).join('')}
+        <div class="ch-sec"><h5>主要テーマ</h5><div class="ch-themes">${a.themes.map(t=>`<span>${t}</span>`).join('')}</div></div>
+        <div class="ch-sec"><h5>収録曲　<span style="font-weight:400;letter-spacing:.04em;font-size:10px;opacity:.7">${a.tracks?'（曲 ▹ モチーフとなった童話・物語）':'（<i style="font-style:normal;color:var(--strong)">原</i>＝原作／文学モチーフ　<i style="font-style:normal;color:var(--gold)">再</i>＝再録）'}</span></h5><div class="ch-tracks">${trackHtml}</div></div>
+        ${a.flow?`<div class="ch-sec"><h5>書簡の時系列　<span class="readmark">読みの一例</span></h5>
+          <div class="flow-intro">${a.flowIntro}</div>
+          <div class="flow">${a.flow.map(f=>`<div class="flow-step">
+            <div class="flow-dot"></div>
+            <div class="flow-head"><span class="flow-t" onclick="openDetail('${f.id}')">${f.title}</span>${f.season?`<span class="flow-season">${f.season}</span>`:''}</div>
+            <div class="flow-note">${f.reason}</div></div>`).join('')}</div></div>`:''}
+        ${a.note?`<div class="ch-note">※ ${a.note}</div>`:''}
+      </div></div>`;
+  });
+  host.innerHTML=html;
+}
+function jumpAlbum(id){
+  const el=document.getElementById('ch-'+id);
+  if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// init（地図読み込み失敗が他描画を巻き添えにしないよう分離）
+syncFilters(); renderGrid(); renderStory(); renderTimeline();
+try{ initMap(); }catch(e){ console.warn('map init failed:',e); }
+</script>
+</body>
+</html>
