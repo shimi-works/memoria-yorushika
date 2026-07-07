@@ -1667,6 +1667,7 @@ cosmos.addEventListener('dragstart',e=>e.preventDefault());
 cosmos.addEventListener('pointerdown',e=>{
   if(e.target.closest('.cz-ctrl,.link-ctrl'))return;   // コントロール上ではドラッグ/キャプチャを開始しない
   czPts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(czPts.size===1) czDragged=false;   // 新しいジェスチャー開始：前のドラッグ/ピンチ状態を持ち越さない（星タップが効かなくなるバグ対策）
   if(czPts.size===2){ // ピンチ開始（両ポインタをキャプチャ）
     czDrag=false; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true;
     czPts.forEach((_,id)=>{try{cosmos.setPointerCapture(id);}catch(_){}});
