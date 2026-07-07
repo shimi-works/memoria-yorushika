@@ -1621,11 +1621,17 @@ const cosmos=$('#cosmos');
 const cosmosInner=$('#cosmosInner');
 cosmos.classList.add('igniting');
 $('#view-cosmos').classList.add('first');
+const _occ={}; // 同じ座標に重なる星を黄金角スパイラルで少しずらす（クリック可能に）
 SONGS.forEach((s,i)=>{
   const el=document.createElement('div');
   el.className='star'; el.dataset.id=s.id;
-  el.style.left=(5+s.axes.t*90)+'%';
-  el.style.top=(7+(1-s.axes.e)*84)+'%';
+  let left=5+s.axes.t*90, top=7+(1-s.axes.e)*84;
+  const key=Math.round(left*1.3)+'_'+Math.round(top*1.3);
+  const n=(_occ[key]=(_occ[key]||0)+1);
+  if(n>1){ const ang=(n-1)*2.399963, r=1.8*Math.sqrt(n-1); left+=r*Math.cos(ang); top+=r*Math.sin(ang); }
+  s._lx=left; s._ly=top;             // 線描画・配置で共有する実座標
+  el.style.left=left+'%';
+  el.style.top=top+'%';
   el.style.color=SEASON[s.season];
   el.style.animationDelay=(1.5+i*0.016)+'s'; // 星が時間差で灯る
   el.innerHTML=`<div class="dot"></div><div class="nm">${s.title}</div>`;
@@ -1661,11 +1667,14 @@ cosmos.addEventListener('dragstart',e=>e.preventDefault());
 cosmos.addEventListener('pointerdown',e=>{
   if(e.target.closest('.cz-ctrl,.link-ctrl'))return;   // コントロール上ではドラッグ/キャプチャを開始しない
   czPts.set(e.pointerId,{x:e.clientX,y:e.clientY});
-  try{cosmos.setPointerCapture(e.pointerId);}catch(_){}
-  if(czPts.size===2){ czDrag=false; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true; }
-  else if(czPts.size===1 && cz>1 && (e.pointerType!=='mouse'||e.button===0)){
+  if(czPts.size===2){ // ピンチ開始（両ポインタをキャプチャ）
+    czDrag=false; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true;
+    czPts.forEach((_,id)=>{try{cosmos.setPointerCapture(id);}catch(_){}});
+  } else if(czPts.size===1 && cz>1 && (e.pointerType!=='mouse'||e.button===0)){ // パン開始（拡大時のみ）
     e.preventDefault(); czDrag=true; czDragged=false; czSX=e.clientX-cx; czSY=e.clientY-cy;
+    try{cosmos.setPointerCapture(e.pointerId);}catch(_){}
   }
+  // cz==1 の単純タップはキャプチャしない → 星の click が発火して楽曲へ飛べる
 });
 cosmos.addEventListener('pointermove',e=>{
   if(!czPts.has(e.pointerId))return;
@@ -1700,7 +1709,7 @@ cosmos.addEventListener('lostpointercapture',czPointerUp);
 // ── 星座線（同じ作者・同じ聖地の曲を線で結ぶ） ──
 const SVGNS='http://www.w3.org/2000/svg';
 let linkLayer=null, linkMode='none';
-function songXY(s){return [5+s.axes.t*90, 7+(1-s.axes.e)*84];}
+function songXY(s){return [s._lx!=null?s._lx:5+s.axes.t*90, s._ly!=null?s._ly:7+(1-s.axes.e)*84];}
 function ensureLinkLayer(){
   if(linkLayer)return;
   linkLayer=document.createElementNS(SVGNS,'svg');
