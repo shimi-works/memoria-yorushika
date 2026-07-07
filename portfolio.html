@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memoria ヨルシカ世界観マップ — 技術説明・設計思想</title>
+<meta name="description" content="ヨルシカ約110曲を感情×時間の座標に配置した世界観データベース Memoria の技術説明・設計思想。単一HTML・Leaflet・情報デザイン。">
+</head>
+<body>
+<style>
+  :root{
+    --bg:#EBEEF4; --surface:#FFFFFF; --surface-2:#F3F5F9; --ink:#131A26;
+    --muted:#566072; --faint:#7B8698; --line:#D6DDE8;
+    --accent:#D65A22; --accent-2:#3B4CD1; --glow:rgba(214,90,34,.14);
+    --code-bg:#0E141F; --code-ink:#E7ECF5;
+    --font-sans: system-ui,-apple-system,"Segoe UI","Hiragino Kaku Gothic ProN","Yu Gothic UI",Meiryo,sans-serif;
+    --font-mono: ui-monospace,"SF Mono","Cascadia Code","JetBrains Mono","Roboto Mono",Consolas,monospace;
+    --font-serif: "Hiragino Mincho ProN","Yu Mincho",YuMincho,"Shippori Mincho",serif;
+    --maxw:960px; --r:16px;
+    --spring:#D96E93; --summer:#2E9E96; --autumn:#C58236; --winter:#5C74C4;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0C1017; --surface:#131A26; --surface-2:#0F1620; --ink:#ECF1F8;
+      --muted:#9AA7BC; --faint:#6C7B92; --line:#223047;
+      --accent:#F6853F; --accent-2:#7E90FF; --glow:rgba(246,133,63,.18);
+      --code-bg:#0A0F17; --code-ink:#DCE4F1;
+      --spring:#E79BB6; --summer:#4FC7C2; --autumn:#D9A05B; --winter:#9FB8E6;
+    }
+  }
+  :root[data-theme="light"]{--bg:#EBEEF4;--surface:#FFFFFF;--surface-2:#F3F5F9;--ink:#131A26;--muted:#566072;--faint:#7B8698;--line:#D6DDE8;--accent:#D65A22;--accent-2:#3B4CD1;--glow:rgba(214,90,34,.14);--code-bg:#0E141F;--code-ink:#E7ECF5;--spring:#D96E93;--summer:#2E9E96;--autumn:#C58236;--winter:#5C74C4}
+  :root[data-theme="dark"]{--bg:#0C1017;--surface:#131A26;--surface-2:#0F1620;--ink:#ECF1F8;--muted:#9AA7BC;--faint:#6C7B92;--line:#223047;--accent:#F6853F;--accent-2:#7E90FF;--glow:rgba(246,133,63,.18);--code-bg:#0A0F17;--code-ink:#DCE4F1;--spring:#E79BB6;--summer:#4FC7C2;--autumn:#D9A05B;--winter:#9FB8E6}
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-sans);
+    font-size:1.0625rem;line-height:1.72;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 22px}
+  a{color:var(--accent-2);text-underline-offset:3px}
+  code{font-family:var(--font-mono);font-size:.86em;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+
+  .eyebrow{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin:0 0 .5rem;font-weight:600}
+  h1,h2,h3{text-wrap:balance;line-height:1.12;letter-spacing:-.015em}
+  h2{font-size:clamp(1.5rem,3.3vw,2.05rem);font-weight:800;margin:0 0 .35rem}
+  h3{font-size:1.12rem;font-weight:700;margin:0 0 .3rem;letter-spacing:-.01em}
+  p{margin:0 0 1rem} .lead{color:var(--muted)}
+
+  /* ---------- HERO ---------- */
+  .hero{position:relative;border-bottom:1px solid var(--line);overflow:hidden;
+    background:radial-gradient(120% 90% at 88% -10%,var(--glow),transparent 60%),var(--surface-2)}
+  .hero::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:repeating-linear-gradient(90deg,rgba(127,140,170,.05) 0 2px,transparent 2px 7px)}
+  .hero-inner{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;
+    padding:clamp(46px,7.5vw,88px) 0 clamp(40px,6vw,68px)}
+  @media(max-width:800px){.hero-inner{grid-template-columns:1fr;gap:30px}}
+  .hero h1{font-size:clamp(2.2rem,6vw,3.5rem);font-weight:850;margin:.15rem 0 .5rem}
+  .hero h1 .accent{background:linear-gradient(100deg,var(--accent-2),var(--accent));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .lead{font-size:1.06rem;max-width:38ch}
+  .meta-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:20px}
+  .chip{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.02em;padding:5px 11px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--surface)}
+
+  /* ---------- 星座デモ ---------- */
+  .demo{display:flex;flex-direction:column;gap:12px}
+  .stage{position:relative;aspect-ratio:16/13;border-radius:20px;overflow:hidden;border:1px solid var(--line);
+    box-shadow:0 18px 50px -24px rgba(10,15,30,.55);user-select:none;
+    background:radial-gradient(60% 80% at 82% 12%,#20335c66,transparent 70%),radial-gradient(50% 60% at 12% 90%,#3a2b4a55,transparent 70%),linear-gradient(180deg,#0e1830,#0a1120)}
+  .gl{position:absolute;background:#ffffff12} .gl.h{left:0;right:0;height:1px;top:50%} .gl.v{top:0;bottom:0;width:1px;left:50%}
+  .axl{position:absolute;font-family:var(--font-mono);font-size:.62rem;letter-spacing:.14em;color:#8b98b8}
+  .axl.t{top:8px;left:50%;transform:translateX(-50%)} .axl.b{bottom:8px;left:50%;transform:translateX(-50%)}
+  .axl.l{left:8px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl} .axl.r{right:8px;top:50%;transform:translateY(-50%);writing-mode:vertical-rl}
+  .star{position:absolute;transform:translate(-50%,-50%);cursor:default}
+  .star i{display:block;width:11px;height:11px;border-radius:50%;background:currentColor;box-shadow:0 0 0 4px #ffffff10,0 0 14px 2px currentColor;transition:transform .2s}
+  .star b{position:absolute;left:50%;top:14px;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-weight:400;
+    color:#dbe3f5;text-shadow:0 1px 4px #000a;opacity:0;transition:opacity .2s;font-family:var(--font-serif)}
+  .star:hover i,.star.lit i{transform:scale(1.5)} .star:hover b{opacity:1}
+  .star.dim{opacity:.16}
+  .stage-cap{position:absolute;left:12px;bottom:10px;font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;color:#aab6d4}
+  .readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .ro{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .ro b{display:block;font-family:var(--font-mono);font-size:1rem;font-variant-numeric:tabular-nums}
+  .ro small{color:var(--faint);font-size:.66rem;letter-spacing:.04em}
+  .toggle-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+  .seg button{font-family:var(--font-mono);font-size:.72rem;padding:6px 12px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+  .seg-label{font-size:.76rem;color:var(--faint)}
+
+  /* ---------- SECTIONS ---------- */
+  section{padding:clamp(44px,7vw,76px) 0;border-bottom:1px solid var(--line)}
+  .sec-head{max-width:64ch;margin-bottom:28px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px} .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:22px}
+  .card .num{font-family:var(--font-mono);font-size:.74rem;color:var(--accent);letter-spacing:.1em}
+  .card p:last-child{margin-bottom:0}
+  .formula{font-family:var(--font-mono);background:var(--code-bg);color:var(--code-ink);border-radius:10px;padding:13px 15px;margin:12px 0;font-size:.9rem;overflow-x:auto;line-height:1.55;border:1px solid rgba(255,255,255,.06)}
+  .formula .c{color:#8b98b0} .formula .k{color:var(--accent)}
+
+  /* pipeline / arch */
+  .arch{display:flex;flex-direction:column}
+  .layer{border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:14px 16px}
+  .layer .tag{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .layer .name{font-weight:700;margin-top:2px} .layer .desc{color:var(--muted);font-size:.9rem;margin-top:3px}
+  .arrow{align-self:center;color:var(--faint);font-family:var(--font-mono);font-size:.76rem;padding:8px 0;letter-spacing:.08em}
+  .bridge{border-style:dashed;border-color:var(--accent);background:linear-gradient(0deg,var(--glow),transparent)}
+  .inject{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin-top:10px}
+  .inject dt{font-family:var(--font-mono);font-size:.78rem;color:var(--accent-2)}
+  .inject dd{margin:0;color:var(--muted);font-size:.92rem}
+
+  /* 信頼レイヤー */
+  .layers3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px}
+  @media(max-width:640px){.layers3{grid-template-columns:1fr}}
+  .lay{border-radius:12px;padding:13px 15px;border:1px solid}
+  .lay .lh{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.08em;margin-bottom:4px}
+  .lay.off{background:color-mix(in srgb,#c98b6b 12%,var(--surface));border-color:color-mix(in srgb,#c98b6b 40%,var(--line))}
+  .lay.str{background:color-mix(in srgb,#7fae7a 12%,var(--surface));border-color:color-mix(in srgb,#7fae7a 40%,var(--line))}
+  .lay.usr{background:color-mix(in srgb,#8a86c9 12%,var(--surface));border-color:color-mix(in srgb,#8a86c9 40%,var(--line))}
+  .lay.off .lh{color:#b3703f} .lay.str .lh{color:#4f8a53} .lay.usr .lh{color:#6a66b0}
+  .lay p{margin:0;font-size:.88rem;color:var(--muted)}
+
+  ul.clean{margin:0;padding-left:1.1em} ul.clean li{margin-bottom:.5rem;color:var(--muted)} ul.clean li b{color:var(--ink);font-weight:650}
+  .btn{font-family:var(--font-mono);font-size:.74rem;text-decoration:none;padding:8px 15px;border-radius:10px;border:1px solid var(--line);color:var(--ink);background:var(--surface);display:inline-flex;gap:6px;align-items:center;transition:.15s}
+  .btn:hover{border-color:var(--accent-2);color:var(--accent-2)} .btn.primary{background:var(--accent-2);color:#fff;border-color:var(--accent-2)} .btn.primary:hover{filter:brightness(1.08);color:#fff}
+  .footer{padding:38px 0 54px;color:var(--faint);font-size:.85rem;font-family:var(--font-mono);letter-spacing:.03em}
+  .footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px}
+  .reveal{opacity:0;transform:translateY(14px);transition:opacity .7s ease,transform .7s ease} .reveal.in{opacity:1;transform:none}
+  @media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none} .star i{transition:none}}
+  :focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;border-radius:6px}
+</style>
+
+<header class="hero">
+  <div class="wrap hero-inner">
+    <div>
+      <p class="eyebrow">単一HTML / 情報デザイン / データ設計</p>
+      <h1>Memoria<br><span class="accent">ヨルシカ世界観マップ</span></h1>
+      <p class="lead">ヨルシカの約110曲を「感情 × 時間」の座標に配置し、原作となった文学・聖地の地図・年表として再構築した<b>世界観データベース</b>。
+        情報を集める「まとめサイト」ではなく、曲を空間に置いて歩く<b>体験</b>にした。</p>
+      <div class="meta-row">
+        <span class="chip">HTML / CSS / JS</span>
+        <span class="chip">Leaflet + OpenStreetMap</span>
+        <span class="chip">単一ファイル・ビルド無し</span>
+        <span class="chip">個人開発</span>
+      </div>
+    </div>
+
+    <div class="demo">
+      <div class="stage" id="stage" role="img" aria-label="曲を感情×時間の座標に置いた世界観マップのデモ">
+        <div class="gl h"></div><div class="gl v"></div>
+        <div class="axl t">高揚・衝動</div><div class="axl b">静寂・喪失</div>
+        <div class="axl l">朝・昼</div><div class="axl r">夜・月</div>
+        <div class="stage-cap" id="cap">星にふれると曲名（実データの座標）</div>
+      </div>
+      <div class="readouts">
+        <div class="ro"><b>110<span style="font-size:.7em">曲</span></b><small>収録楽曲</small></div>
+        <div class="ro"><b>2<span style="font-size:.7em">軸</span></b><small>感情 × 時間</small></div>
+        <div class="ro"><b>3<span style="font-size:.7em">層</span></b><small>信頼性レイヤー</small></div>
+      </div>
+      <div class="toggle-row">
+        <span class="seg-label">モチーフ絞り込み:</span>
+        <span class="seg" role="group" aria-label="モチーフ絞り込みの切替">
+          <button id="segAll" aria-pressed="true">すべて</button>
+          <button id="segSummer" aria-pressed="false">夏</button>
+        </span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 概要 -->
+  <section id="overview">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Overview</p>
+        <h2>何を、なぜ作ったか</h2>
+        <p class="lead">従来のファン情報は各所に分散し、「知識の羅列」になりがち。それを、曲を中心に据えた<b>一つの構造</b>として組み直すのが目的だった。</p>
+      </div>
+      <div class="grid3">
+        <div class="card reveal"><p class="num">課題</p><h3>情報の分散</h3>
+          <p>楽曲・原作の文学・聖地・考察が、別々のサイトにばらばらに存在する。探すのに知識と手間が要る。</p></div>
+        <div class="card reveal"><p class="num">方針</p><h3>量ではなく構造で</h3>
+          <p>網羅の競争をやめ、曲を「感情×時間」の空間に置く。まず少数を丁寧に設計してデータ構造を固め、全曲へ拡張した。</p></div>
+        <div class="card reveal"><p class="num">到達点</p><h3>育つデータベース</h3>
+          <p>約110曲を網羅。世界観マップ・楽曲・聖地アトラス・年表の4つの見方で、同じデータを多面的に読める。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 仕組み -->
+  <section id="how">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">How it works</p>
+        <h2>曲を、空間に置く</h2>
+        <p class="lead">曲データ → 座標 → 描画。表示の難所は「多すぎる星」と「地図のAPIキー」。それぞれに一つずつ設計判断がある。</p>
+      </div>
+
+      <div class="grid2">
+        <div class="card reveal"><p class="num">01 — 配置</p><h3>感情 × 時間の2軸へ</h3>
+          <p>各曲に、時間 <code>t</code>（朝→夜）と感情 <code>e</code>（静寂→高揚）の座標を与える。星の位置は割合で置くだけ。色は季節。</p>
+          <div class="formula">
+t = 0..1  <span class="c">// 朝 → 夜</span>
+e = 0..1  <span class="c">// 静寂 → 高揚</span>
+left = 5 + t·90 %      top = 7 + (1−e)·84 %</div></div>
+
+        <div class="card reveal"><p class="num">02 — ズーム</p><h3>110の星が、重ならない</h3>
+          <p>全体を拡大すると星も曲名も一緒に巨大化して潰れる。そこで<b>星の中身だけを逆スケール</b>し、画面上のサイズを一定に保つ。拡大＝星が離れるだけで、文字は重ならない。</p>
+          <div class="formula">
+inner.transform = scale(cz)        <span class="c">// 全体を拡大</span>
+star.transform  = scale(<span class="k">1/cz</span>)     <span class="c">// 中身は逆スケール</span></div></div>
+      </div>
+
+      <div style="height:16px"></div>
+      <div class="card reveal">
+        <p class="num" style="font-family:var(--font-mono);color:var(--accent);font-size:.74rem;letter-spacing:.1em">03 — 地図</p>
+        <h3>キー不要の聖地マップ</h3>
+        <p style="margin-bottom:0">聖地（MVのロケ地・原作の舞台・歌詞の実在地名）は地図に置く。Google Maps はキーと課金設定が要り、単一HTMLだとキーが露出する。<b>Leaflet + OpenStreetMap</b> を選び、キーなし・無料で地図を成立させた。日本各地に加え、二部作の舞台スウェーデンまで含む。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- データ設計 -->
+  <section id="data">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Data architecture</p>
+        <h2>手作業の丁寧さと、自動化の広さ</h2>
+        <p class="lead">曲データ本体を汚さずに、タグ・原作・背景・読み仮名を後から全曲へ足せる<b>注入パイプライン</b>を設計した。「この曲にこの語が出る」という発見を、そのまま構造に落とせる。</p>
+      </div>
+      <div class="arch reveal">
+        <div class="layer"><div class="tag">Source</div><div class="name">RICH（詳細注釈曲）＋ FULL（全曲の題・アルバム・BPM・Key）</div><div class="desc">丁寧に書いた核と、機械的な全曲リストを分けて持つ</div></div>
+        <div class="arrow">▼ &nbsp;重複除去してマージ</div>
+        <div class="layer bridge"><div class="tag">Merge</div><div class="name">SONGS を合成</div>
+          <div class="desc">RICHにある曲はそのまま、無い曲は軽量オブジェクトを自動生成</div>
+          <dl class="inject">
+            <dt>LYRIC_TAGS</dt><dd>歌詞に出る語（百日紅・巫山・手紙…）を横断タグ化</dd>
+            <dt>CONCEPT_TAGS</dt><dd>歌詞から起こした概念語（孤独・気球・追憶…）</dd>
+            <dt>TAG_MAP</dt><dd>作者・登場人物・出典ジャンル</dd>
+            <dt>WORKS_MAP</dt><dd>原作リンク（作者・作品・信頼度）</dd>
+            <dt>SONG_BG</dt><dd>MV概要欄・公式コメント由来の背景</dd>
+            <dt>READINGS</dt><dd>読み仮名（漢字・数字の題のみ）</dd>
+          </dl></div>
+        <div class="arrow">▼</div>
+        <div class="layer"><div class="tag">View</div><div class="name">世界観マップ / 楽曲 / 聖地アトラス / 歩み（年表）</div><div class="desc">同じ SONGS を、4つの見方で描画。タグは自動で集計・ジャンル分けして絞り込みに反映</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 著作権を設計に -->
+  <section id="ethics">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <p class="eyebrow">Constraint as design</p>
+        <h2>著作権を、設計に変える</h2>
+        <p class="lead">歌詞は載せられない。この制約を回避ではなく、<b>設計判断</b>として扱った。</p>
+      </div>
+      <div class="grid2" style="align-items:start">
+        <div class="card reveal"><h3>歌詞は、メタデータにする</h3>
+          <p>歌詞本文はアプリに一切載せず、外部の公式・許諾サイトへリンク。歌詞は<b>解析して概念タグ（単語）に変換</b>する形でのみ活用し、本文はリポジトリにも残さない。原作の出典は作者・作品名という事実として示す。</p></div>
+        <div class="card reveal"><h3>信頼性を、混ぜない</h3>
+          <p>考察の確度を3層に分離し、常に色で区別する。「本人が公言した事実」と「ファンの解釈」を同じ顔で並べない ── 情報の誠実さをUIの第一原則にした。</p>
+          <div class="layers3">
+            <div class="lay off"><div class="lh">公式</div><p>本人の言及・原作の明確な一致・タイアップ</p></div>
+            <div class="lay str"><div class="lh">有力考察</div><p>広く共有され、根拠のある読み</p></div>
+            <div class="lay usr"><div class="lh">ユーザー</div><p>個人的な解釈の余白</p></div>
+          </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 設計思想 -->
+  <section id="philosophy">
+    <div class="wrap">
+      <div class="sec-head reveal"><p class="eyebrow">Design Principles</p><h2>設計思想</h2>
+        <p class="lead">情報を並べることより、テーマを「歩ける構造」に翻訳することを優先した。</p></div>
+      <div class="grid2">
+        <div class="card reveal"><p class="num">01</p><h3>構造で勝つ</h3><p>量では既存サイトに勝てない。曲を空間に配置し、関係を見せることで「体験」の価値を作る。</p></div>
+        <div class="card reveal"><p class="num">02</p><h3>継続的に育てられる形に</h3><p>データ層と表示層を分離し、注入レイヤーに1行足すだけで全曲へ反映。生きたDBとして更新し続けられる。</p></div>
+        <div class="card reveal"><p class="num">03</p><h3>制約を、設計に</h3><p>著作権もAPIキーも、回避ではなく設計に変える。歌詞→概念タグ、地図→キー不要のLeaflet。</p></div>
+        <div class="card reveal"><p class="num">04</p><h3>見える不満を、ロジックに翻訳する</h3><p>「拡大で文字が重なる」不満を、星の逆スケールという式で根本解決。演出でごまかさない。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- スタック / 学び -->
+  <section id="stack" style="border-bottom:none">
+    <div class="wrap">
+      <div class="grid2" style="align-items:start">
+        <div class="reveal"><p class="eyebrow">Tech Stack</p><h2 style="margin-bottom:16px">技術スタック</h2>
+          <div class="meta-row" style="margin-top:0">
+            <span class="chip">HTML / CSS / JavaScript</span>
+            <span class="chip">Leaflet 1.9</span>
+            <span class="chip">OpenStreetMap（キー不要）</span>
+            <span class="chip">単一HTML・依存最小</span>
+            <span class="chip">GitHub Pages</span>
+            <span class="chip">明朝system font</span>
+          </div>
+          <div style="margin-top:20px"><a class="btn primary" href="https://shimi-works.github.io/memoria-yorushika/" target="_blank" rel="noopener">実際のサイトを開く ↗</a>
+            <a class="btn" href="https://github.com/shimi-works/memoria-yorushika" target="_blank" rel="noopener" style="margin-left:8px">コード</a></div>
+        </div>
+        <div class="reveal"><p class="eyebrow">Learnings</p><h2 style="margin-bottom:16px">得られた学び</h2>
+          <ul class="clean">
+            <li><b>情報設計</b>：信頼度のラベリングと3層分離で、誠実さをUIに落とす。</li>
+            <li><b>データパイプライン</b>：核と自動生成を分け、後付けで育てられる構造を作る。</li>
+            <li><b>制約の設計化</b>：著作権・APIキーを、回避でなく判断に変える。</li>
+            <li><b>一次情報の裏取り</b>：公式サイト・本人発言まで遡り、考察と事実を切り分ける。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <span>Memoria — ヨルシカ世界観マップ / 技術説明・設計思想</span>
+    <span>単一HTML / 情報デザイン / 個人開発</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  // 実データの座標（title, t, e, season）— 歌詞は含まない
+  var DATA=[
+    ["又三郎",.5,.82,"autumn"],["月に吠える",1,.3,"winter"],["春泥棒",.45,.6,"spring"],
+    ["老人と海",.55,.5,"summer"],["ただ君に晴れ",.4,.75,"summer"],["晴る",.35,.8,"spring"],
+    ["夜行",.98,.45,"summer"],["ノーチラス",.95,.3,"winter"],["花に亡霊",.5,.55,"summer"],
+    ["藍二乗",.7,.3,"summer"],["ブレーメン",.6,.85,"winter"],["思想犯",.6,.5,"winter"],
+    ["パレード",.8,.4,"winter"],["靴の花火",.9,.35,"summer"],["斜陽",.75,.35,"autumn"],
+    ["チノカテ",.4,.6,"summer"],["左右盲",.8,.3,"winter"],["アルジャーノン",.5,.4,"spring"]
+  ];
+  var COL={spring:"var(--spring)",summer:"var(--summer)",autumn:"var(--autumn)",winter:"var(--winter)"};
+  var stage=document.getElementById("stage");
+  var frag=document.createDocumentFragment();
+  DATA.forEach(function(d,i){
+    var el=document.createElement("div");
+    el.className="star"; el.dataset.season=d[3];
+    el.style.left=(5+d[1]*90)+"%"; el.style.top=(7+(1-d[2])*84)+"%"; el.style.color=COL[d[3]];
+    el.innerHTML='<i></i><b>'+d[0]+'</b>';
+    frag.appendChild(el);
+  });
+  stage.appendChild(frag);
+  // 起動時に順に灯す
+  var stars=stage.querySelectorAll(".star");
+  if(!matchMedia("(prefers-reduced-motion:reduce)").matches){
+    stars.forEach(function(s,i){ s.style.opacity="0"; setTimeout(function(){ s.style.transition="opacity .5s"; s.style.opacity=""; },250+i*55); });
+  }
+  // モチーフ絞り込み（夏）
+  var segAll=document.getElementById("segAll"), segSummer=document.getElementById("segSummer"), cap=document.getElementById("cap");
+  function setFilter(summer){
+    segSummer.setAttribute("aria-pressed",summer?"true":"false");
+    segAll.setAttribute("aria-pressed",summer?"false":"true");
+    stars.forEach(function(s){ s.classList.toggle("dim", summer && s.dataset.season!=="summer"); });
+    cap.textContent=summer?"モチーフ「夏」で絞り込み中":"星にふれると曲名（実データの座標）";
+  }
+  segAll.addEventListener("click",function(){setFilter(false);});
+  segSummer.addEventListener("click",function(){setFilter(true);});
+  // reveal
+  if("IntersectionObserver" in window){
+    var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target);}});},{threshold:.12});
+    document.querySelectorAll(".reveal").forEach(function(el){io.observe(el);});
+  }else{document.querySelectorAll(".reveal").forEach(function(el){el.classList.add("in");});}
+})();
+</script>
+
+</body>
+</html>
