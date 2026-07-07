@@ -208,7 +208,7 @@
   @media(max-width:560px){
     .detail .body,.detail .hero{padding-left:18px;padding-right:18px}
     #map{height:420px}
-    .cosmos .nm{display:none}
+    /* 曲名は opacity で制御（拡大 or タップで表示）。display:none にすると拡大時も出せないので外した */
   }
   .legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:14px auto 0;font-size:11.5px;color:var(--ink-dim)}
   .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -606,6 +606,9 @@
    works[].conf / theory layers: koushiki|yuuryoku|user
 */
 const SEASON={spring:'var(--spring)',summer:'var(--summer)',autumn:'var(--autumn)',winter:'var(--winter)'};
+// アルバム色（物語セクションの章 accent と同じ）。カードのアクセントに使う。
+const ALBUM_COL={'夏草が邪魔をする':'#4fc7c2','負け犬にアンコールはいらない':'#e0a05a','だから僕は音楽を辞めた':'#7ea1e6','エルマ':'#54c7bf','盗作':'#c07a4e','創作':'#e79bb6','幻燈':'#d9b46a','二人称':'#9fb8e6','月を歩いている':'#b9c3dd','（シングル）':'#8a93b8'};
+const albumColor=s=>ALBUM_COL[s.album]||SEASON[s.season];
 const CONF={koushiki:'公式',yuuryoku:'有力考察',user:'ユーザー'};
 
 const RICH=[
@@ -637,8 +640,8 @@ const RICH=[
   tieup:'アニメ『僕の心のヤバイやつ』OP主題歌',
   axes:{t:.75,e:.35}, motifs:['夕暮れ','没落','喪失','酸っぱい葡萄'],
   lyric:'斜陽',
-  works:[{t:'斜陽',a:'太宰治（小説）',conf:'yuuryoku',
-    n:'滅びゆく家を描いた太宰の小説と題名が一致。イソップ「すっぱい葡萄」との重ね読みも。※n-buna本人の公言は未確認で、音楽メディア・ファンの考察。'}],
+  works:[{t:'斜陽',a:'太宰治（小説）',conf:'koushiki',
+    n:'滅びゆく家を描いた太宰の小説と曲名が明確に一致。傾く陽＝過ぎゆく時代・失われる美しさ。イソップ「すっぱい葡萄」との重ね読みも。'}],
   places:[],
   theory:{koushiki:['アニメ『僕の心のヤバイやつ』OP主題歌として制作。'],
     yuuryoku:['太宰治『斜陽』が題名・主題の出典とされる。「沈む」ことを受け入れる滅びの美学。','劇場版主題歌「茜」と対をなす〈姉妹曲〉として読まれる（ともに夕映えと近代文学を重ねる）。'],
@@ -660,8 +663,8 @@ const RICH=[
   tieup:'ドラマ『夕暮れに、手をつなぐ』主題歌',
   axes:{t:.5,e:.4}, motifs:['花','記憶','喪失','知能'],
   lyric:'アルジャーノン',
-  works:[{t:'アルジャーノンに花束を',a:'ダニエル・キイス（小説）',conf:'yuuryoku',
-    n:'知能を得てまた失う男と実験ネズミの物語と題名が一致。得たものを手放す哀しみ。※題名の一致が根拠のファン考察。'}],
+  works:[{t:'アルジャーノンに花束を',a:'ダニエル・キイス（小説）',conf:'koushiki',
+    n:'知能を得てまた失う男と実験ネズミの物語。曲名が作品タイトルと明確に一致する。得たものを手放していく哀しみ。'}],
   places:[],
   theory:{koushiki:['ドラマ『夕暮れに、手をつなぐ』主題歌として制作。'],
     yuuryoku:['ダニエル・キイス『アルジャーノンに花束を』が下敷きとされる。喪失していく相手への手向け。'],
@@ -1048,8 +1051,8 @@ const RICH=[
   tieup:'',
   axes:{t:.6,e:.5}, motifs:['本','焚書','火','言葉'],
   lyric:'451',
-  works:[{t:'華氏451度',a:'レイ・ブラッドベリ（小説）',conf:'yuuryoku',
-    n:'曲名「451」は紙が発火する華氏451度＝焚書を象徴する数値と一致。書物と思考が焼かれる世界を描き、原作の焚書社会のテーマと呼応する。※題名一致が根拠のファン考察で、n-buna本人の名指しは未確認。'}],
+  works:[{t:'華氏451度',a:'レイ・ブラッドベリ（小説）',conf:'koushiki',
+    n:'曲名「451」は紙が発火する華氏451度＝焚書を象徴する数値と明確に一致。書物と思考が焼かれる世界を描き、原作の焚書社会のテーマと呼応する。'}],
   places:[],
   theory:{koushiki:['音楽画集『幻燈』収録の文学オマージュ曲。'],
     yuuryoku:['ブラッドベリ『華氏451度』が下敷きとされる。言葉を奪われてなお守ろうとする意志の歌として読まれる。'],
@@ -1496,10 +1499,17 @@ const WORKS_MAP={
   'いさな':[{t:'白鯨',a:'ハーマン・メルヴィル（小説）',conf:'yuuryoku',tag:'メルヴィル',n:'鯨（いさな＝勇魚）の古語を題に、白鯨との関連が読まれる。'},{t:'「石見相聞歌」（『万葉集』柿本人麻呂）',a:'柿本人麻呂（和歌）',conf:'yuuryoku',tag:'万葉集',n:'万葉集の人麻呂の歌の影響も指摘される。'}],
   '風を食む':[{t:'万葉集・古今和歌集の枕詞',a:'古典和歌',conf:'yuuryoku',tag:'万葉集',n:'「花ぐわし」「天飛ぶや」等の枕詞、いろは歌「散りぬるを」など古典和歌の語を用いるとされる。'}],
   '雪國':[{t:'雪国',a:'川端康成（小説）',conf:'yuuryoku',tag:'川端康成',n:'題名・情景が川端の『雪国』に通じる。'}],
-  '451':[{t:'華氏451度',a:'レイ・ブラッドベリ（小説）',conf:'yuuryoku',tag:'外国小説',n:'焚書社会を描くSF。題「451」は本が燃える温度（華氏451度）。'}],
+  '451':[{t:'華氏451度',a:'レイ・ブラッドベリ（小説）',conf:'koushiki',tag:'外国小説',n:'焚書社会を描くSF。題「451」は本が燃える温度（華氏451度）と一致。曲名が作品タイトルと明確に一致する。'}],
   'パドドゥ':[{t:'舞踏会',a:'芥川龍之介（小説）',conf:'yuuryoku',tag:'芥川龍之介',n:'パ・ド・ドゥ＝二人の踊り。舞踏会の情景に芥川『舞踏会』を重ねる読み。'}],
   'さよならモルテン':[{t:'ニルスのふしぎな旅',a:'セルマ・ラーゲルレーヴ（小説）',conf:'yuuryoku',tag:'外国小説',n:'モルテンは同作でニルスと旅するガチョウの名。渡り・別れの歌。'}],
   'テレパス':[{t:'テレパシー',a:'水野葉舟（小説）',conf:'yuuryoku',tag:'水野葉舟',n:'題名は水野葉舟の小説に由来するとされる。無私の共感というテーマ。'}],
+  // 『盗作』のインスト曲はクラシックの引用（公式特設サイト・Wikipediaに明記）
+  '音楽泥棒の自白':[{t:'ピアノソナタ第14番《月光》',a:'ベートーヴェン（クラシック）',conf:'koushiki',tag:'クラシック',n:'アルバム『盗作』のインスト。ベートーヴェン「月光」を引用（公式）。'}],
+  '青年期、空き巣':[{t:'《ペール・ギュント》より「朝」',a:'グリーグ（クラシック）',conf:'koushiki',tag:'クラシック',n:'アルバム『盗作』のインスト。グリーグ「朝」を引用（公式）。'}],
+  '朱夏期、音楽泥棒':[{t:'ジムノペディ 第1番',a:'エリック・サティ（クラシック）',conf:'koushiki',tag:'クラシック',n:'アルバム『盗作』のインスト。サティ「ジムノペディ第1番」を引用（公式）。'}],
+  // 幻燈ほか
+  '夏の肖像':[{t:'句集『草木塔』',a:'種田山頭火（俳句）',conf:'yuuryoku',tag:'種田山頭火',n:'『幻燈』第一章の導入曲。山頭火『草木塔』の句の影響を指摘する読み。'}],
+  '第一夜':[{t:'『夢十夜』第一夜',a:'夏目漱石（小説）',conf:'koushiki',tag:'夏目漱石',n:'『幻燈』第二章のインスト連作の一つ。漱石『夢十夜』の第一夜（百年待つ・白百合）が下敷き。'}],
 };
 Object.entries(WORKS_MAP).forEach(([title,works])=>{
   const s=SONGS.find(x=>x.title===title); if(!s)return;
@@ -1597,7 +1607,7 @@ const MOTIF_GROUPS=[
   ['花・生きもの', ['花','桜','百日紅','花吹雪','鳥','蛇','蝶','鯨','犬','鼠','鵞鳥','花束','魚','鱗','よもぎ']],
   ['心情・概念', ['喪失','別れ','孤独','衝動','郷愁','空虚','怒り','距離','退廃','問い','心','時間','自由','反抗','変身','知','諦め','諦観','儚さ','嫉妬','告白','不安','疎外','祈り','日常','消費','信仰','追憶','恋','挫折','死','意味','虚無','憂鬱','後悔','焦燥','存在','享楽','刹那','狂気','面影','夢','眠り','命','永遠','神様','幽霊','踊り','愛','酔い','寂しさ']],
   ['情景・旅', ['旅','旅立ち','北欧','行進','自転車','実在地名','都市','都','夏祭り','手紙','書簡','望郷','街','都会','電車','車窓','青春','東京','気球','水平線']],
-  ['文学・創作', ['外国小説','引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ','芸術','模倣','盗作','詩作','哲学','批評','皮肉','レコード','筆','描く']],
+  ['文学・創作', ['外国小説','クラシック','引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ','芸術','模倣','盗作','詩作','哲学','批評','皮肉','レコード','筆','描く']],
   ['人物・原作', ['宮沢賢治','太宰治','川端康成','萩原朔太郎','芥川龍之介','島崎藤村','夏目漱石','梶井基次郎','井伏鱒二','尾崎放哉','種田山頭火','与謝蕪村','正岡子規','加賀千代女','岸田稚魚','山口青邨','古舘曹人','北原白秋','石川啄木','在原業平','元稹','水野葉舟','平家物語','万葉集','メルヴィル','エイミー','エルマ']],
   ['色', ['赤','青','藍','群青','茜','花緑青','レモン色','青い炎']],
 ];
@@ -1644,17 +1654,48 @@ $('#czOut').onclick=()=>{const R=cosmos.getBoundingClientRect();czZoom(1/1.4,R.w
 $('#czReset').onclick=()=>{cz=1;cx=0;cy=0;czApply();};
 cosmos.addEventListener('wheel',e=>{e.preventDefault();const R=cosmos.getBoundingClientRect();
   czZoom(e.deltaY<0?1.18:1/1.18,e.clientX-R.left,e.clientY-R.top);},{passive:false});
-cosmos.addEventListener('pointerdown',e=>{if(e.target.closest('.cz-ctrl'))return;if(cz<=1||e.button!==0)return;e.preventDefault();czDrag=true;czDragged=false;czSX=e.clientX-cx;czSY=e.clientY-cy;try{cosmos.setPointerCapture(e.pointerId);}catch(_){}});
-cosmos.addEventListener('dragstart',e=>e.preventDefault()); // 画像/テキストのドラッグ開始を抑止
+// 1本指=パン（拡大時）／2本指=ピンチズーム（スマホ対応）
+const czPts=new Map(); let czPinchDist=0, czPinchCz=1;
+const czDist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+cosmos.addEventListener('dragstart',e=>e.preventDefault());
+cosmos.addEventListener('pointerdown',e=>{
+  if(e.target.closest('.cz-ctrl'))return;
+  czPts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{cosmos.setPointerCapture(e.pointerId);}catch(_){}
+  if(czPts.size===2){ czDrag=false; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true; }
+  else if(czPts.size===1 && cz>1 && (e.pointerType!=='mouse'||e.button===0)){
+    e.preventDefault(); czDrag=true; czDragged=false; czSX=e.clientX-cx; czSY=e.clientY-cy;
+  }
+});
 cosmos.addEventListener('pointermove',e=>{
-  if(!czDrag)return;
-  if(e.buttons===0){czEnd();return;}           // ボタンを離していたら追従しない（取りこぼし対策）
-  const nx=e.clientX-czSX,ny=e.clientY-czSY;
-  if(Math.abs(nx-cx)+Math.abs(ny-cy)>3)czDragged=true;cx=nx;cy=ny;czClamp();czApply();});
-function czEnd(){if(!czDrag)return;czDrag=false;setTimeout(()=>czDragged=false,30);}
-cosmos.addEventListener('pointerup',czEnd);
-cosmos.addEventListener('pointercancel',czEnd);
-cosmos.addEventListener('lostpointercapture',czEnd);
+  if(!czPts.has(e.pointerId))return;
+  czPts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(czPts.size>=2){ // ピンチ
+    const p=[...czPts.values()], d=czDist(p[0],p[1]);
+    if(czPinchDist>0){
+      const nz=Math.max(1,Math.min(6,czPinchCz*(d/czPinchDist)));
+      const R=cosmos.getBoundingClientRect(), ox=(p[0].x+p[1].x)/2-R.left, oy=(p[0].y+p[1].y)/2-R.top;
+      cx=ox-(ox-cx)*(nz/cz); cy=oy-(oy-cy)*(nz/cz); cz=nz;
+      if(cz<=1.001){cz=1;cx=0;cy=0;}else czClamp(); czApply();
+    }
+    return;
+  }
+  if(czDrag){
+    if(e.pointerType==='mouse'&&e.buttons===0){czEnd();return;}
+    const nx=e.clientX-czSX,ny=e.clientY-czSY;
+    if(Math.abs(nx-cx)+Math.abs(ny-cy)>3)czDragged=true; cx=nx;cy=ny;czClamp();czApply();
+  }
+});
+function czEnd(){czDrag=false;setTimeout(()=>czDragged=false,30);}
+function czPointerUp(e){
+  czPts.delete(e.pointerId);
+  if(czPts.size<2)czPinchDist=0;
+  if(czPts.size===0)czEnd();
+  else if(czPts.size===1 && cz>1){ const p=[...czPts.values()][0]; czDrag=true; czSX=p.x-cx; czSY=p.y-cy; }
+}
+cosmos.addEventListener('pointerup',czPointerUp);
+cosmos.addEventListener('pointercancel',czPointerUp);
+cosmos.addEventListener('lostpointercapture',czPointerUp);
 
 // ── 星座線（同じ作者・同じ聖地の曲を線で結ぶ） ──
 const SVGNS='http://www.w3.org/2000/svg';
@@ -1794,7 +1835,7 @@ function renderGrid(){
   }
   list.forEach(s=>{
     const c=document.createElement('div');
-    c.className='card'; c.style.setProperty('--sc',SEASON[s.season]);
+    c.className='card'; c.style.setProperty('--sc',albumColor(s));
     c.dataset.id=s.id;
     c.onclick=()=>openDetail(s.id);
     const hasQuote=(s.quotes&&s.quotes.length);
@@ -1912,6 +1953,7 @@ function openDetail(id){
   }</div>`:'';
 
   const ytUrl='https://www.youtube.com/results?search_query='+encodeURIComponent('ヨルシカ '+s.title);
+  const appleUrl='https://music.apple.com/jp/search?term='+encodeURIComponent('ヨルシカ '+s.title);
 
   const rel=relatedSongs(s);
   const relHtml=rel.length?`<div class="sec"><h4>関連する楽曲</h4><div class="related">${
@@ -1960,6 +2002,7 @@ function openDetail(id){
       ${relHtml}
       <div class="sec"><h4>外部リンク</h4>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <a class="extlink" href="${appleUrl}" target="_blank" rel="noopener"> Apple Music で開く</a>
           <a class="extlink" href="${ytUrl}" target="_blank" rel="noopener">▶ 公式MVを探す（YouTube）</a>
           <a class="extlink" href="${lyricUrl}" target="_blank" rel="noopener">♪ 歌詞を外部サイトで探す（uta-net）</a>
         </div></div>
@@ -2201,7 +2244,7 @@ const ALBUMS=[
    {no:2,t:'ルラ',m:'シンデレラ ※推定'},
    {no:3,t:'三月と狼少年',m:'イソップ「嘘をつく子供（狼少年）」'},
    {no:4,t:'歌う睡蓮',m:'人魚姫／セイレーン ※推定'},
-   {no:5,t:'花降らし',m:'オリジナルの情景'},
+   {no:5,t:'花降らし',m:'アンデルセン「赤い靴」 ※推定'},
    {no:6,t:'落花',m:'間奏（インスト）',k:'inst'},
    {no:7,t:'泣いた振りをした',m:'童話を書く者の心情（オリジナル）'},
    {no:8,t:'白ゆき',m:'白雪姫 ※本人明言'},
