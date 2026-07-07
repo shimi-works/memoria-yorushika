@@ -115,6 +115,8 @@
     background:linear-gradient(180deg,#111c34,#0d1626);cursor:pointer;transition:.2s;overflow:hidden}
   .card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--sc,var(--indigo))}
   .card:hover{transform:translateY(-3px);border-color:var(--indigo)}
+  .card.flash{border-color:var(--gold);animation:cardFlash 1.8s ease}
+  @keyframes cardFlash{0%,55%{box-shadow:0 0 0 2px var(--gold),0 0 26px 5px #d9b46a99}100%{box-shadow:0 0 0 0 transparent}}
   .card .yr{font-size:11px;color:var(--ink-dim);letter-spacing:.14em}
   .card h3{margin:3px 0 2px;font-size:19px;letter-spacing:.04em;font-weight:600}
   .card .rd{font-size:11px;color:var(--ink-dim);letter-spacing:.1em}
@@ -1457,7 +1459,6 @@ const WORKS_MAP={
   '負け犬にアンコールはいらない':[{t:'句集『負け犬』',a:'岸田稚魚（俳句）',conf:'koushiki',tag:'岸田稚魚',n:'アルバム題は岸田稚魚の句集『負け犬』へのオマージュだとn-bunaが公言。'}],
   '雨とカプチーノ':[{t:'訳詩「勧酒」（『厄除け詩集』）',a:'井伏鱒二（訳詩）',conf:'yuuryoku',tag:'井伏鱒二',n:'于武陵「勧酒」の井伏訳「花に嵐のたとえもあるさ さよならだけが人生だ」を下敷きとする読み。『山椒魚』の影響も指摘される。'}],
   '雨晴るる':[{t:'句「山は街は梅雨晴るる海のささ濁り」',a:'種田山頭火（俳句）',conf:'yuuryoku',tag:'種田山頭火',n:'曲名は山頭火の句に由来するとされる。'}],
-  '幼年期、思い出の中':[{t:'幼年期の終り',a:'アーサー・C・クラーク（小説）',conf:'yuuryoku',tag:'アーサー・C・クラーク',n:'題名は同作に由来するとされる。'}],
   '春泥棒':[{t:'句集『庭にて』',a:'山口青邨（俳句）',conf:'yuuryoku',tag:'山口青邨',n:'桜＝命の見立てに、青邨の句の影響を指摘する読み。'}],
   '言って。':[{t:'句「牡丹散ちりて打ちかさなりぬ二三片」',a:'与謝蕪村（俳句）',conf:'yuuryoku',tag:'与謝蕪村',n:'散る花の情景に蕪村の句を重ねる読み。'}],
   '夜行':[{t:'句「一輪草」（句集『樹下石上』）',a:'古舘曹人（俳句）',conf:'yuuryoku',tag:'古舘曹人',n:'サビの「一輪草」（花言葉＝追憶）は古舘曹人の句に由来するとされる。'}],
@@ -1567,7 +1568,7 @@ const MOTIF_GROUPS=[
   ['心情・概念', ['喪失','別れ','孤独','衝動','郷愁','空虚','怒り','距離','退廃','問い','心','時間','自由','反抗','変身','知','諦め','諦観','儚さ','嫉妬','告白','不安','疎外','祈り','日常','消費','信仰','追憶','恋','挫折','死','意味','虚無','憂鬱','後悔','焦燥','存在','享楽','刹那','狂気','面影','夢','眠り','命','永遠','神様','幽霊','踊り','愛','酔い','寂しさ']],
   ['情景・旅', ['旅','旅立ち','北欧','行進','自転車','実在地名','都市','都','夏祭り','手紙','書簡','望郷','街','都会','電車','車窓','青春','東京','気球','水平線']],
   ['文学・創作', ['外国小説','引用','言葉','記憶','創作','盗み','インスト','詩','本','焚書','短歌','舞踏','真贋','音楽','ピアノ','芸術','模倣','盗作','詩作','哲学','批評','皮肉','レコード','筆','描く']],
-  ['人物・原作', ['宮沢賢治','太宰治','川端康成','萩原朔太郎','芥川龍之介','島崎藤村','夏目漱石','梶井基次郎','井伏鱒二','尾崎放哉','種田山頭火','与謝蕪村','正岡子規','加賀千代女','岸田稚魚','山口青邨','古舘曹人','北原白秋','石川啄木','在原業平','元稹','水野葉舟','平家物語','万葉集','アーサー・C・クラーク','メルヴィル','エイミー','エルマ']],
+  ['人物・原作', ['宮沢賢治','太宰治','川端康成','萩原朔太郎','芥川龍之介','島崎藤村','夏目漱石','梶井基次郎','井伏鱒二','尾崎放哉','種田山頭火','与謝蕪村','正岡子規','加賀千代女','岸田稚魚','山口青邨','古舘曹人','北原白秋','石川啄木','在原業平','元稹','水野葉舟','平家物語','万葉集','メルヴィル','エイミー','エルマ']],
   ['色', ['赤','青','藍','群青','茜','花緑青','レモン色','青い炎']],
 ];
 const inGroup=new Set(MOTIF_GROUPS.flatMap(g=>g[1]));
@@ -1588,7 +1589,7 @@ SONGS.forEach((s,i)=>{
   el.style.color=SEASON[s.season];
   el.style.animationDelay=(1.5+i*0.016)+'s'; // 星が時間差で灯る
   el.innerHTML=`<div class="dot"></div><div class="nm">${s.title}</div>`;
-  el.onclick=(e)=>{if(!czDragged)openDetail(s.id);};
+  el.onclick=(e)=>{if(!czDragged)goToSong(s.id);};
   cosmosInner.appendChild(el);
 });
 // 演出が済んだら igniting/first を外して通常状態へ（再描画時のちらつき防止）
@@ -1690,6 +1691,24 @@ function matchesSearch(s){
 }
 
 // ── song grid ──
+// 世界観マップの星タップ → 楽曲ページの該当曲へジャンプ＆ハイライト
+function goToSong(id){
+  const btn=$('.tabs button[data-view="songs"]'); if(btn) btn.click();
+  setTimeout(()=>{
+    let card=$('#songGrid .card[data-id="'+id+'"]');
+    if(!card){ // フィルタ/検索で隠れているときは解除して再表示
+      activeMotif=null; searchQ='';
+      const si=$('#songSearch'); if(si) si.value='';
+      const sb=$('#searchBox'); if(sb) sb.classList.remove('has');
+      syncFilters();
+      card=$('#songGrid .card[data-id="'+id+'"]');
+    }
+    if(card){ card.scrollIntoView({behavior:'smooth',block:'center'});
+      card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+      setTimeout(()=>card.classList.remove('flash'),1800); }
+  },70);
+}
+
 function renderGrid(){
   const g=$('#songGrid'); g.innerHTML='';
   const list=SONGS.filter(s=>(!activeMotif||s.motifs.includes(activeMotif))&&matchesSearch(s)).sort(byAlbum);
@@ -1702,6 +1721,7 @@ function renderGrid(){
   list.forEach(s=>{
     const c=document.createElement('div');
     c.className='card'; c.style.setProperty('--sc',SEASON[s.season]);
+    c.dataset.id=s.id;
     c.onclick=()=>openDetail(s.id);
     const hasQuote=(s.quotes&&s.quotes.length);
     c.innerHTML=`
