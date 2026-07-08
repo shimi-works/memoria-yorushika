@@ -209,6 +209,18 @@
   .extlink{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;border:1px solid var(--line);
     border-radius:8px;padding:7px 12px;background:#101a30}
   .extlink:hover{border-color:var(--indigo);text-decoration:none}
+  /* モーダル内の公式動画プレイヤー（初期はサムネのみ→タップで埋め込み読込） */
+  .ytwrap{margin-top:0;margin-bottom:2px}
+  .ytembed{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;cursor:pointer;
+    border:1px solid var(--line);background-color:#0a1120;background-size:cover;background-position:center;background-repeat:no-repeat}
+  .ytembed .ytmask{position:absolute;inset:0;background:linear-gradient(180deg,#0a112022,#0a1120bb)}
+  .ytembed .ytplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;
+    background:#101a30cc;border:1px solid #ffffff55;color:#fff;font-size:19px;display:flex;align-items:center;justify-content:center;
+    padding-left:3px;transition:.16s;box-shadow:0 6px 24px #0008}
+  .ytembed:hover .ytplay{background:#b8402fdd;border-color:#fff;transform:translate(-50%,-50%) scale(1.06)}
+  .ytembed .ytkind{position:absolute;left:10px;bottom:9px;font-size:11px;letter-spacing:.08em;color:#e6ecf9;
+    background:#0a1120bb;padding:3px 9px;border-radius:6px;border:1px solid var(--line)}
+  .ytframe{width:100%;aspect-ratio:16/9;border-radius:12px;border:1px solid var(--line);display:block;background:#0a1120}
 
   footer{position:relative;z-index:2;text-align:center;color:#6b7690;font-size:11px;letter-spacing:.06em;
     padding:20px 16px 40px;line-height:1.9}
@@ -2106,6 +2118,12 @@ function openDetail(id){
       <div class="rl">《 ${o.x.album} 》</div></div>`).join('')
   }</div></div>`:'';
 
+  const embedHtml=s.yt?`<div class="sec ytwrap">
+      <div class="ytembed" data-yt="${s.yt}" style="background-image:url('https://i.ytimg.com/vi/${s.yt}/hqdefault.jpg')" role="button" tabindex="0" title="再生" onclick="playYt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playYt(this);}">
+        <div class="ytmask"></div><div class="ytplay">▶</div>
+        <div class="ytkind">${s.ytkind==='topic'?'公式音源を再生':'公式MVを再生'}</div>
+      </div></div>`:'';
+
   const savedRead=getReading(s.id);
   const readHtml=`<div class="sec"><h4>あなたの読み</h4><div class="myread">
     <textarea id="myReadArea" placeholder="この曲についてのあなたの解釈や思い出を書き留めておけます。">${escapeHtml(savedRead)}</textarea>
@@ -2132,6 +2150,7 @@ function openDetail(id){
       </div>
     </div>
     <div class="body">
+      ${embedHtml}
       <div class="sec"><h4>モチーフ</h4><div class="mtlist">${s.motifs.map(m=>`<span>${m}</span>`).join('')}</div></div>
       ${s.rerec?`<div class="sec"><h4>Re-Recording（再録）</h4><div class="rerecbox"><div class="rb-albums"><b>${s.album}</b>（原曲）　→　<b>${s.rerec.album}</b>（再録）</div><div class="rb-note">${s.rerec.note}</div></div></div>`:''}
       ${s.shincho?`<div class="sec"><h4>新潮文庫コラボ</h4><div class="shinchobox"><div class="sh-t">📖 ${s.shincho}</div><div class="sh-n">音楽画集『幻燈』の楽曲モチーフとして、新潮文庫が限定カバー本を刊行した公式コラボ作品（全6冊）の一つ。</div></div></div>`:''}
@@ -2159,6 +2178,16 @@ function openDetail(id){
 }
 function closeDetail(){scrim.classList.remove('open');document.body.style.overflow='';curSong=null;
   try{history.replaceState(null,'',location.pathname+location.search);}catch(_){}}
+// サムネのファサードを実際の埋め込みプレイヤーに差し替える（タップ時のみ読込＝軽量・公式動画の埋め込みなので著作権も安全）
+function playYt(el){
+  const id=el.dataset.yt; if(!id)return;
+  const f=document.createElement('iframe');
+  f.className='ytframe';
+  f.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0&playsinline=1';
+  f.title='YouTube player'; f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';
+  f.setAttribute('allowfullscreen',''); f.setAttribute('frameborder','0');
+  el.replaceWith(f);
+}
 // 隣の曲へ移動（アルバム順。端は反対側へループ）
 const navOrder=()=>[...SONGS].sort(byAlbum);
 function navSong(id,dir){ const l=navOrder(); const i=l.findIndex(x=>x.id===id); if(i<0)return; const j=(i+dir+l.length)%l.length; openDetail(l[j].id); }
