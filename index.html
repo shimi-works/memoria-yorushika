@@ -1559,8 +1559,22 @@ const YT_MAP={
   'プレイシック':'2-jDq07rNs0','ポスト春':'bKZkKy5rP_s','ルバート':'2BgWMrU-aUM','火葬':'Y0Na3bgkKiI','月光浴':'wUzvF5xm2C0',
   '櫂':'SIwfXPESJ8k','茜':'VD_ztcqWBAY',
 };
+/* 公式MVが無い曲は「Yorushika - Topic」チャンネルの公式音源（レコード会社の自動生成）へ。全IDをYouTube oembedで author_name 末尾 "- Topic" と照合済み。 */
+const YT_TOPIC={
+  '夏陰、ピアノを弾く':'VrhQEwN97vE','カトレア':'iC3pkl1nUVM','あの夏に咲け':'p0_udWUi1HA','飛行':'A14pg6suBt4','前世':'2XKPgx7cric',
+  '負け犬にアンコールはいらない':'CpAUv-DMTd0','爆弾魔':'JvDVIpf8OCQ','落下':'XSwM6g20RVE','冬眠':'vAmgdj2eNw4','夏、バス停、君を待つ':'0iKWR3-7OXs',
+  '8/31':'uedeUGBvMjg','詩書きとコーヒー':'twp_Gu2pJkM','7/13':'AThUSmROzpw','踊ろうぜ':'id0Jzya-8-8','六月は雨上がりの街を書く':'tXtyi6jGTFE','夜紛い':'Jk3RAtzZilU','5/6':'3zOS5nGJ-04','エルマ':'AZgsGUH_Jd0','4/10':'wgZZ7Y3EQmg',
+  '車窓':'oeMP1XtA92A','憂一乗':'RMreKWHCP74','夕凪、某、花惑い':'wpkgN3Ny_P0','湖の街':'g1WD9ogYZLU','神様のダンス':'3qTWFjeItaw','雨晴るる':'lEKSsgwn8hw','歩く':'rjrres2QTyk','森の教会':'N4OL5QgZ2G4','声':'Hl56wOGf0iY','エイミー':'Ysyap8QkF-A','海底、月明かり':'eH_GNrsIy54',
+  '音楽泥棒の自白':'7lZNHcJuOXk','昼鳶':'vfi1866ly1o','青年期、空き巣':'1g3TGUTme-A','レプリカント':'nMPQoiZoN2U','花人局':'3XIORoa0v0k','朱夏期、音楽泥棒':'Qu8dwmMafB8','逃亡':'LiStvz5SWMc','幼年期、思い出の中':'pKJ55ftVPRE',
+  '夏の肖像':'k480n7NBXP4','雪国':'5bpHW3ToFlQ','パドドゥ':'0JU__LPuaPQ','老人と海':'t2MjHjP2HdE','さよならモルテン':'MP4iEK_btKU','いさな':'F_cmjdKbWnU',
+  '第一夜':'kh_yLwkRUIE','第二夜':'NXqSJmkSn4s','第三夜':'tXjKQZ_lWIg','第四夜':'jki_pUPLbDs','第五夜':'FcfJEPvCakg','第六夜':'B7O-NLqgWjo','第七夜':'cRHIpTcJWW8','第八夜':'o2-24VoEWGU','第九夜':'e3dwxV2UDik','第十夜':'PUz3ZtvEG5M',
+  '創作':'UiBXhNcineo','嘘月':'utpMm8qi4hg','うめき':'k7PaxegnNnw','海へ':'6dACu1sMrAw',
+};
 Object.entries(YT_MAP).forEach(([title,vid])=>{
-  const s=SONGS.find(x=>x.title===title); if(s&&vid) s.yt=vid;
+  const s=SONGS.find(x=>x.title===title); if(s&&vid){ s.yt=vid; s.ytkind='mv'; }
+});
+Object.entries(YT_TOPIC).forEach(([title,vid])=>{
+  const s=SONGS.find(x=>x.title===title); if(s&&vid&&!s.yt){ s.yt=vid; s.ytkind='topic'; }
 });
 
 /* ── 読み仮名を全曲に統一（タイトルの読み＝事実データ） ── */
@@ -2029,7 +2043,7 @@ function openDetail(id){
 
   const ytUrl=s.yt?'https://www.youtube.com/watch?v='+s.yt
                   :'https://www.youtube.com/results?search_query='+encodeURIComponent('ヨルシカ '+s.title);
-  const ytLabel=s.yt?'▶ 公式MVを再生（YouTube）':'▶ 公式MVを探す（YouTube）';
+  const ytLabel=s.yt?(s.ytkind==='topic'?'▶ 公式音源を再生（YouTube）':'▶ 公式MVを再生（YouTube）'):'▶ 公式MVを探す（YouTube）';
   const appleUrl='https://music.apple.com/jp/search?term='+encodeURIComponent('ヨルシカ '+s.title);
 
   const rel=relatedSongs(s);
