@@ -10,7 +10,7 @@
   :root{
     --bg:#0c1120; --bg2:#111a30; --ink:#e7ecf6; --ink-dim:#9aa6c4;
     --line:#243350; --indigo:#5b7cc9; --indigo-bright:#7ea1e6;
-    --spring:#e79bb6; --summer:#4fc7c2; --autumn:#d9a05b; --winter:#9fb8e6;
+    --spring:#e79bb6; --summer:#4fc7c2; --autumn:#d9a05b; --winter:#9fb8e6; --beyond:#a89ec4;
     --gold:#d9b46a; --panel:#0f1830ee;
     --off:#c98b6b; /* 公式 */ --strong:#7fae7a; /* 有力考察 */ --user:#8a86c9; /* ユーザー */
   }
@@ -536,7 +536,8 @@
         <span><i style="background:var(--spring)"></i>春</span>
         <span><i style="background:var(--summer)"></i>夏</span>
         <span><i style="background:var(--autumn)"></i>秋</span>
-        <span><i style="background:var(--winter)"></i>冬・季節を超えて</span>
+        <span><i style="background:var(--winter)"></i>冬</span>
+        <span><i style="background:var(--beyond)"></i>季節を超えて</span>
       </div>
     </div>
   </section>
@@ -626,7 +627,7 @@
    season: spring|summer|autumn|winter
    works[].conf / theory layers: koushiki|yuuryoku|user
 */
-const SEASON={spring:'var(--spring)',summer:'var(--summer)',autumn:'var(--autumn)',winter:'var(--winter)'};
+const SEASON={spring:'var(--spring)',summer:'var(--summer)',autumn:'var(--autumn)',winter:'var(--winter)',beyond:'var(--beyond)'};
 // アルバム色（物語セクションの章 accent と同じ）。カードのアクセントに使う。
 const ALBUM_COL={'夏草が邪魔をする':'#4fc7c2','負け犬にアンコールはいらない':'#e0a05a','だから僕は音楽を辞めた':'#7ea1e6','エルマ':'#54c7bf','盗作':'#c07a4e','創作':'#e79bb6','幻燈':'#d9b46a','二人称':'#9fb8e6','月を歩いている':'#b9c3dd','（シングル）':'#8a93b8'};
 const albumColor=s=>ALBUM_COL[s.album]||SEASON[s.season];
@@ -959,7 +960,7 @@ const RICH=[
  {id:'hitchcock',title:'ヒッチコック',reading:'ひっちこっく',album:'負け犬にアンコールはいらない',albumYear:'負け犬にアンコールはいらない #3',bpm:181,key:'Fm',season:'autumn',
   tieup:'',
   rerec:{album:'二人称',albumYear:'二人称 #18',note:'2026年のアルバム『二人称』に Re-Recording 版を収録。約8年を経た歌声とアレンジで歌い直された。'},
-  axes:{t:.5,e:.65}, motifs:['問い','不安','大人','言葉'],
+  axes:{t:.5,e:.65}, motifs:['アルフレッド・ヒッチコック','問い','不安','大人','言葉'],
   lyric:'ヒッチコック',
   works:[],
   places:[],
@@ -1624,6 +1625,37 @@ Object.entries(AM_MAP).forEach(([title,id])=>{
   const s=SONGS.find(x=>x.title===title); if(s&&id) s.am=id;
 });
 
+/* ── 季節タグの確定（ユーザー指定）。タイトルから明らかなもの＋指定分を確定。
+   季節感が不明なもの（特にインスト）は 'beyond'＝「季節を超えて」。 */
+const SEASON_PATCH={
+  '夏陰、ピアノを弾く':'summer','カトレア':'summer','言って。':'summer','あの夏に咲け':'summer','ヒッチコック':'summer',
+  '冬眠':'winter','夏、バス停、君を待つ':'summer','7/13':'summer','六月は雨上がりの街を書く':'summer','五月は花緑青の窓辺から':'summer',
+  'エルマ':'summer','4/10':'spring','だから僕は音楽を辞めた':'summer','夕凪、某、花惑い':'summer','神様のダンス':'summer',
+  '雨晴るる':'summer','歩く':'summer','声':'beyond','春ひさぎ':'beyond','花人局':'beyond',
+  '朱夏期、音楽泥棒':'summer','思想犯':'beyond','逃亡':'summer','創作':'spring','風を食む':'spring',
+  '嘘月':'winter','夏の肖像':'summer','都落ち':'spring','ブレーメン':'spring','チノカテ':'beyond',
+  '雪国':'winter','月に吠える':'beyond','451':'beyond','パドドゥ':'summer','又三郎':'summer',
+  '老人と海':'summer','さよならモルテン':'summer','いさな':'beyond','アルジャーノン':'beyond',
+  '第一夜':'summer','第二夜':'beyond','第三夜':'beyond','第四夜':'beyond','第五夜':'beyond','第六夜':'beyond',
+  '第七夜':'beyond','第八夜':'beyond','第九夜':'beyond','第十夜':'beyond',
+  '早朝、郵便受け':'beyond','雲になる':'summer','太陽':'beyond','忘れてください':'beyond','修羅':'beyond',
+  'ルバート':'beyond','アポリア':'spring','啄木鳥':'beyond','月光浴':'winter','千鳥':'summer',
+  '櫂':'beyond','海へ':'beyond','テレパス':'beyond','あぶく':'beyond',
+};
+const _seasonSet=new Set();
+Object.entries(SEASON_PATCH).forEach(([title,se])=>{
+  const s=SONGS.find(x=>x.title===title); if(s){ s.season=se; _seasonSet.add(s.id); }
+});
+// 季節ワードのモチーフ（夏・春・冬・秋）を持つ曲は、季節タグを必ずそれに一致させる（指定済みの曲は指定を優先）
+const _SEASON_WORD={'春':'spring','夏':'summer','秋':'autumn','冬':'winter'};
+SONGS.forEach(s=>{
+  if(_seasonSet.has(s.id))return;
+  const hits=[...new Set((s.motifs||[]).map(m=>_SEASON_WORD[m]).filter(Boolean))];
+  if(hits.length===1 && s.season!==hits[0]) s.season=hits[0];
+});
+// 「季節を超えて」の曲は季節を確定していないので、矛盾する季節ワードのモチーフは外す
+SONGS.forEach(s=>{ if(s.season==='beyond') s.motifs=(s.motifs||[]).filter(m=>!_SEASON_WORD[m]); });
+
 /* ── 読み仮名を全曲に統一（タイトルの読み＝事実データ） ── */
 const READINGS={
   '夏陰、ピアノを弾く':'なつかげ、ぴあのをひく','カトレア':'かとれあ','言って。':'いって','あの夏に咲け':'あのなつにさけ','飛行':'ひこう','靴の花火':'くつのはなび','雲と幽霊':'くもとゆうれい','前世':'ぜんせ',
@@ -2079,7 +2111,7 @@ function openDetail(id){
   const s=SONGS.find(x=>x.id===id);
   if(!s)return;
   const hero=SEASON[s.season];
-  const SEASON_JP={spring:'春',summer:'夏',autumn:'秋',winter:'冬・季を超えて'};
+  const SEASON_JP={spring:'春',summer:'夏',autumn:'秋',winter:'冬',beyond:'季節を超えて'};
   const lyricUrl='https://www.uta-net.com/search/?target=title&type=in&sort=&keyword='+encodeURIComponent(s.title);
   const placeHtml=s.places.map(p=>{
     const P=PLACES[p.ref];
