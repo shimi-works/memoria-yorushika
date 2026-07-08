@@ -1625,6 +1625,19 @@ Object.entries(AM_MAP).forEach(([title,id])=>{
   const s=SONGS.find(x=>x.title===title); if(s&&id) s.am=id;
 });
 
+/* ── 再録曲は、YouTube・Apple のリンク／埋め込みを「再録版」に向ける（原曲ではなく録り直した音源へ） ── */
+const RERECC={
+  '靴の花火':{yt:'Q-s6lSQK_I4',ytkind:'topic',am:6781645781},   // 幻燈 Re-Recording
+  '爆弾魔':{yt:'XifmeRdJCjo',ytkind:'topic',am:1519740247},      // 盗作 Re-Recording
+  'ヒッチコック':{yt:'x0LWO9sn8SA',ytkind:'topic',am:1876728683},// 二人称 Re-Recording
+};
+Object.entries(RERECC).forEach(([title,r])=>{
+  const s=SONGS.find(x=>x.title===title); if(!s)return;
+  if(r.yt){ s.yt=r.yt; s.ytkind=r.ytkind; }
+  if(r.am) s.am=r.am;
+  s.rerecLink=true;
+});
+
 /* ── 季節タグの確定（ユーザー指定）。タイトルから明らかなもの＋指定分を確定。
    季節感が不明なもの（特にインスト）は 'beyond'＝「季節を超えて」。 */
 const SEASON_PATCH={
@@ -2137,10 +2150,11 @@ function openDetail(id){
 
   const ytUrl=s.yt?'https://www.youtube.com/watch?v='+s.yt
                   :'https://www.youtube.com/results?search_query='+encodeURIComponent('ヨルシカ '+s.title);
-  const ytLabel=s.yt?(s.ytkind==='topic'?'▶ 公式音源を再生（YouTube）':'▶ 公式MVを再生（YouTube）'):'▶ 公式MVを探す（YouTube）';
+  const _rr=s.rerecLink?'（再録版）':'';
+  const ytLabel=(s.yt?(s.ytkind==='topic'?'▶ 公式音源を再生（YouTube）':'▶ 公式MVを再生（YouTube）'):'▶ 公式MVを探す（YouTube）')+_rr;
   const appleUrl=s.am?'https://music.apple.com/jp/song/'+s.am
                      :'https://music.apple.com/jp/search?term='+encodeURIComponent('ヨルシカ '+s.title);
-  const appleLabel=s.am?' Apple Music で聴く':' Apple Music で探す';
+  const appleLabel=(s.am?' Apple Music で聴く':' Apple Music で探す')+_rr;
 
   const rel=relatedSongs(s);
   const relHtml=rel.length?`<div class="sec"><h4>関連する楽曲</h4><div class="related">${
@@ -2153,7 +2167,7 @@ function openDetail(id){
   const embedHtml=s.yt?`<div class="sec ytwrap">
       <div class="ytembed" data-yt="${s.yt}" style="background-image:url('https://i.ytimg.com/vi/${s.yt}/hqdefault.jpg')" role="button" tabindex="0" title="再生" onclick="playYt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playYt(this);}">
         <div class="ytmask"></div><div class="ytplay">▶</div>
-        <div class="ytkind">${s.ytkind==='topic'?'公式音源を再生':'公式MVを再生'}</div>
+        <div class="ytkind">${s.ytkind==='topic'?'公式音源を再生':'公式MVを再生'}${s.rerecLink?'（再録版）':''}</div>
       </div></div>`:'';
 
   const savedRead=getReading(s.id);
