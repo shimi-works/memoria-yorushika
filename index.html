@@ -10,7 +10,7 @@
   :root{
     --bg:#0c1120; --bg2:#111a30; --ink:#e7ecf6; --ink-dim:#9aa6c4;
     --line:#243350; --indigo:#5b7cc9; --indigo-bright:#7ea1e6;
-    --spring:#e79bb6; --summer:#4fc7c2; --autumn:#d9a05b; --winter:#9fb8e6; --beyond:#a89ec4;
+    --spring:#e79bb6; --summer:#4fc7c2; --autumn:#d9a05b; --winter:#9fb8e6; --beyond:#b06ad0;
     --gold:#d9b46a; --panel:#0f1830ee;
     --off:#c98b6b; /* 公式 */ --strong:#7fae7a; /* 有力考察 */ --user:#8a86c9; /* ユーザー */
   }
@@ -1625,17 +1625,16 @@ Object.entries(AM_MAP).forEach(([title,id])=>{
   const s=SONGS.find(x=>x.title===title); if(s&&id) s.am=id;
 });
 
-/* ── 再録曲は、YouTube・Apple のリンク／埋め込みを「再録版」に向ける（原曲ではなく録り直した音源へ） ── */
+/* ── 再録版のメディアIDを s.rerec に付与（原曲IDは s.yt/s.am のまま保持）。
+   楽曲カードは「原曲」カード＝原曲の音源／「再録」カード＝再録版の音源、を埋め込む。 ── */
 const RERECC={
   '靴の花火':{yt:'Q-s6lSQK_I4',ytkind:'topic',am:6781645781},   // 幻燈 Re-Recording
   '爆弾魔':{yt:'XifmeRdJCjo',ytkind:'topic',am:1519740247},      // 盗作 Re-Recording
   'ヒッチコック':{yt:'x0LWO9sn8SA',ytkind:'topic',am:1876728683},// 二人称 Re-Recording
 };
 Object.entries(RERECC).forEach(([title,r])=>{
-  const s=SONGS.find(x=>x.title===title); if(!s)return;
-  if(r.yt){ s.yt=r.yt; s.ytkind=r.ytkind; }
-  if(r.am) s.am=r.am;
-  s.rerecLink=true;
+  const s=SONGS.find(x=>x.title===title); if(!s||!s.rerec)return;
+  s.rerec.yt=r.yt; s.rerec.ytkind=r.ytkind; s.rerec.am=r.am;
 });
 
 /* ── 季節タグの確定（ユーザー指定）。タイトルから明らかなもの＋指定分を確定。
@@ -2030,7 +2029,7 @@ function renderGrid(){
     const c=document.createElement('div');
     c.className='card'; c.style.setProperty('--sc',ALBUM_COL[en.album]||albumColor(s));
     c.dataset.id=s.id;
-    c.onclick=()=>openDetail(s.id);
+    c.onclick=()=>openDetail(s.id,en.variant);
     const hasQuote=(s.quotes&&s.quotes.length);
     const mark = en.variant==='rerec' ? '<span class="rerecmark">再録</span>'
                : en.variant==='orig'  ? '<span class="rerecmark" style="opacity:.65">原曲</span>' : '';
@@ -2120,9 +2119,15 @@ function fallbackCopy(text,cb){
   document.body.removeChild(ta);
 }
 
-function openDetail(id){
+function openDetail(id,variant){
   const s=SONGS.find(x=>x.id===id);
   if(!s)return;
+  // 再録カードから開いたときは再録版の音源、それ以外は原曲の音源を使う
+  const useRerec = variant==='rerec' && s.rerec && s.rerec.yt;
+  const eYt = useRerec ? s.rerec.yt : s.yt;
+  const eYtkind = useRerec ? s.rerec.ytkind : s.ytkind;
+  const eAm = useRerec ? s.rerec.am : s.am;
+  const _rr = useRerec ? '（再録版）' : '';
   const hero=SEASON[s.season];
   const SEASON_JP={spring:'春',summer:'初夏・夏',autumn:'秋',winter:'冬',beyond:'季節を超えて'};
   const lyricUrl='https://www.uta-net.com/search/?target=title&type=in&sort=&keyword='+encodeURIComponent(s.title);
@@ -2148,13 +2153,12 @@ function openDetail(id){
       <div class="wa">${w.a}</div><div class="wn">${w.n}</div></div>`).join('')
   }</div>`:'';
 
-  const ytUrl=s.yt?'https://www.youtube.com/watch?v='+s.yt
+  const ytUrl=eYt?'https://www.youtube.com/watch?v='+eYt
                   :'https://www.youtube.com/results?search_query='+encodeURIComponent('ヨルシカ '+s.title);
-  const _rr=s.rerecLink?'（再録版）':'';
-  const ytLabel=(s.yt?(s.ytkind==='topic'?'▶ 公式音源を再生（YouTube）':'▶ 公式MVを再生（YouTube）'):'▶ 公式MVを探す（YouTube）')+_rr;
-  const appleUrl=s.am?'https://music.apple.com/jp/song/'+s.am
+  const ytLabel=(eYt?(eYtkind==='topic'?'▶ 公式音源を再生（YouTube）':'▶ 公式MVを再生（YouTube）'):'▶ 公式MVを探す（YouTube）')+_rr;
+  const appleUrl=eAm?'https://music.apple.com/jp/song/'+eAm
                      :'https://music.apple.com/jp/search?term='+encodeURIComponent('ヨルシカ '+s.title);
-  const appleLabel=(s.am?' Apple Music で聴く':' Apple Music で探す')+_rr;
+  const appleLabel=(eAm?' Apple Music で聴く':' Apple Music で探す')+_rr;
 
   const rel=relatedSongs(s);
   const relHtml=rel.length?`<div class="sec"><h4>関連する楽曲</h4><div class="related">${
@@ -2164,10 +2168,10 @@ function openDetail(id){
       <div class="rl">《 ${o.x.album} 》</div></div>`).join('')
   }</div></div>`:'';
 
-  const embedHtml=s.yt?`<div class="sec ytwrap">
-      <div class="ytembed" data-yt="${s.yt}" style="background-image:url('https://i.ytimg.com/vi/${s.yt}/hqdefault.jpg')" role="button" tabindex="0" title="再生" onclick="playYt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playYt(this);}">
+  const embedHtml=eYt?`<div class="sec ytwrap">
+      <div class="ytembed" data-yt="${eYt}" style="background-image:url('https://i.ytimg.com/vi/${eYt}/hqdefault.jpg')" role="button" tabindex="0" title="再生" onclick="playYt(this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();playYt(this);}">
         <div class="ytmask"></div><div class="ytplay">▶</div>
-        <div class="ytkind">${s.ytkind==='topic'?'公式音源を再生':'公式MVを再生'}${s.rerecLink?'（再録版）':''}</div>
+        <div class="ytkind">${eYtkind==='topic'?'公式音源を再生':'公式MVを再生'}${_rr}</div>
       </div></div>`:'';
 
   const savedRead=getReading(s.id);
