@@ -1761,7 +1761,7 @@ $$('.tabs button').forEach(b=>b.onclick=()=>{
 const MOTIF_COUNT={};
 SONGS.forEach(s=>(s.motifs||[]).forEach(m=>MOTIF_COUNT[m]=(MOTIF_COUNT[m]||0)+1));
 const MOTIF_GROUPS=[
-  ['季節・自然', ['夏','夜','春','冬','月','海','風','光','水','火','雨','夕暮れ','夕焼け','朝焼け','雪','太陽','雲','昼','朝','空','蝉','梅雨','海底','嵐','炎天','四季']],
+  ['自然・情景', ['夜','月','海','風','光','水','火','雨','夕暮れ','夕焼け','朝焼け','雪','太陽','雲','昼','朝','空','蝉','梅雨','海底','嵐','炎天']],
   ['花・生きもの', ['花','桜','百日紅','花吹雪','鳥','蛇','蝶','鯨','犬','鼠','鵞鳥','花束','魚','鱗','よもぎ']],
   ['心情・概念', ['喪失','別れ','孤独','衝動','郷愁','空虚','怒り','距離','退廃','問い','心','時間','自由','反抗','変身','知','諦め','諦観','儚さ','嫉妬','告白','不安','疎外','祈り','日常','消費','信仰','追憶','恋','挫折','死','意味','虚無','憂鬱','後悔','焦燥','存在','享楽','刹那','狂気','面影','夢','眠り','命','永遠','神様','幽霊','踊り','愛','酔い','寂しさ']],
   ['情景・旅', ['旅','旅立ち','北欧','行進','自転車','実在地名','都市','都','夏祭り','手紙','書簡','望郷','街','都会','電車','車窓','青春','東京','気球','水平線']],
@@ -1769,10 +1769,13 @@ const MOTIF_GROUPS=[
   ['人物・原作', ['宮沢賢治','太宰治','川端康成','萩原朔太郎','芥川龍之介','島崎藤村','夏目漱石','梶井基次郎','井伏鱒二','尾崎放哉','種田山頭火','与謝蕪村','正岡子規','加賀千代女','岸田稚魚','山口青邨','古舘曹人','北原白秋','石川啄木','在原業平','元稹','水野葉舟','平家物語','万葉集','メルヴィル','エイミー','エルマ']],
 ];
 const inGroup=new Set(MOTIF_GROUPS.flatMap(g=>g[1]));
-const SUPPRESS_MOTIF=new Set(['赤','青','藍','群青','茜','花緑青','レモン色','青い炎']); // 色タグは絞り込みに出さない
+const SUPPRESS_MOTIF=new Set(['赤','青','藍','群青','茜','花緑青','レモン色','青い炎','春','夏','秋','冬','四季']); // 色タグ・季節語は絞り込みチップに出さない（季節は専用の色付きフィルタで扱う）
 // count>=2 のタグだけを表示（1曲だけのタグは隠す）
 const visibleMotif=m=>MOTIF_COUNT[m]>=2;
 let activeMotif=null;
+let activeSeason=null;
+// 季節フィルタの並びとラベル（色は SEASON[key]＝マップの星と同色）
+const SEASON_FILTERS=[['spring','春'],['summer','初夏・夏'],['autumn','秋'],['winter','冬'],['beyond','季節を超えて']];
 
 // ── cosmos ──
 const cosmos=$('#cosmos');
@@ -1928,9 +1931,23 @@ $$('.link-ctrl button').forEach(b=>b.onclick=()=>{
 function buildFilters(host){
   host.innerHTML='';
   const all=document.createElement('button');
-  all.className='chip all'+(activeMotif?'':' on'); all.textContent='すべて';
-  all.onclick=()=>{activeMotif=null;syncFilters();};
+  all.className='chip all'+((activeMotif||activeSeason)?'':' on'); all.textContent='すべて';
+  all.onclick=()=>{activeMotif=null;activeSeason=null;syncFilters();};
   host.appendChild(all);
+  // 季節フィルタ（色付き＝マップの星色と一致。s.season で絞り込む）
+  const sg=document.createElement('span'); sg.className='fg';
+  const slab=document.createElement('span'); slab.className='fg-label'; slab.textContent='季節'; sg.appendChild(slab);
+  SEASON_FILTERS.forEach(([key,label])=>{
+    const n=SONGS.filter(s=>s.season===key).length; if(!n)return;
+    const c=document.createElement('button');
+    c.className='chip'+(activeSeason===key?' on':'');
+    c.innerHTML=`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle;background:${SEASON[key]}"></span>${label}`;
+    c.title=`${n}曲`;
+    if(activeSeason===key) c.style.borderColor=SEASON[key];
+    c.onclick=()=>{activeSeason=activeSeason===key?null:key;syncFilters();};
+    sg.appendChild(c);
+  });
+  host.appendChild(sg);
   const chip=m=>{
     const c=document.createElement('button');
     c.className='chip'+(activeMotif===m?' on':''); c.textContent=m;
@@ -1963,7 +1980,8 @@ function syncFilters(){
   buildFilters($('#cosmosFilters')); buildFilters($('#songFilters'));
   $$('.star').forEach(st=>{
     const s=SONGS.find(x=>x.id===st.dataset.id);
-    st.classList.toggle('dim',activeMotif&&!s.motifs.includes(activeMotif));
+    const off=(activeMotif&&!s.motifs.includes(activeMotif))||(activeSeason&&s.season!==activeSeason);
+    st.classList.toggle('dim',!!off);
   });
   renderGrid();
 }
@@ -1996,7 +2014,7 @@ function goToSong(id){
   setTimeout(()=>{
     let card=$('#songGrid .card[data-id="'+id+'"]');
     if(!card){ // フィルタ/検索で隠れているときは解除して再表示
-      activeMotif=null; searchQ='';
+      activeMotif=null; activeSeason=null; searchQ='';
       const si=$('#songSearch'); if(si) si.value='';
       const sb=$('#searchBox'); if(sb) sb.classList.remove('has');
       syncFilters();
@@ -2010,7 +2028,7 @@ function goToSong(id){
 
 function renderGrid(){
   const g=$('#songGrid'); g.innerHTML='';
-  const base=SONGS.filter(s=>(!activeMotif||s.motifs.includes(activeMotif))&&matchesSearch(s));
+  const base=SONGS.filter(s=>(!activeMotif||s.motifs.includes(activeMotif))&&(!activeSeason||s.season===activeSeason)&&matchesSearch(s));
   // 再録曲は「原曲アルバム」と「再録アルバム」の2枚に分ける（説明文＝詳細は同じ）
   const entries=[];
   base.forEach(s=>{
@@ -2019,7 +2037,7 @@ function renderGrid(){
   });
   entries.sort(byAlbum);
   const cnt=$('#searchCount');
-  if(cnt) cnt.textContent=(activeMotif||searchQ)?`${base.length} 曲を表示中 ／ 全 ${SONGS.length} 曲`:`全 ${SONGS.length} 曲`;
+  if(cnt) cnt.textContent=(activeMotif||activeSeason||searchQ)?`${base.length} 曲を表示中 ／ 全 ${SONGS.length} 曲`:`全 ${SONGS.length} 曲`;
   if(!entries.length){
     g.innerHTML=`<div class="noresult">該当する楽曲が見つかりませんでした。<br>別のキーワードやモチーフでお試しください。</div>`;
     return;
