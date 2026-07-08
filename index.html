@@ -83,6 +83,7 @@
   .gridline.h{left:0;right:0;height:1px}
   .gridline.v{top:0;bottom:0;width:1px}
   .star{position:absolute;transform:translate(-50%,-50%) scale(calc(1 / var(--cz,1)));cursor:pointer;z-index:2;transition:transform .12s ease,opacity .25s}
+  .star::before{content:'';position:absolute;left:50%;top:6px;width:34px;height:34px;transform:translate(-50%,-50%);border-radius:50%} /* 透明の当たり判定を広げてタップしやすく */
   .star .dot{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 4px #ffffff10,0 0 16px 2px currentColor;
     background:currentColor;margin:0 auto;transition:.2s}
   .star .nm{margin-top:5px;font-size:11.5px;color:#cfd8ee;white-space:nowrap;letter-spacing:.04em;text-shadow:0 1px 4px #000a;
@@ -91,7 +92,7 @@
   .star:hover .dot{transform:scale(1.6)}
   .star:hover .nm{opacity:1}
   .cosmos.show-labels .star .nm{opacity:.92;font-size:11.5px}
-  .star.dim{opacity:.14;filter:saturate(.3)}
+  .star.dim{opacity:.14;filter:saturate(.3);pointer-events:none}
   .star.dim .nm{opacity:0!important}
   .star .dot{width:11px;height:11px}
 
@@ -157,6 +158,14 @@
     background:linear-gradient(180deg,var(--hero,#16264a),transparent)}
   .detail .close{position:absolute;top:16px;right:18px;font-size:22px;color:var(--ink-dim);cursor:pointer;background:none;border:none}
   .detail .close:hover{color:var(--ink)}
+  /* 前/次の曲へ即移動する横矢印（画面端に固定） */
+  .dnav{position:fixed;top:50%;transform:translateY(-50%);z-index:70;width:46px;height:46px;border-radius:50%;
+    background:#101a30e0;border:1px solid var(--line);color:#cfd8ee;font-size:26px;line-height:1;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:.15s;padding:0}
+  .dnav:hover{border-color:var(--indigo,#5b7cc9);color:#fff;background:#16213a}
+  .dnav.dprev{left:14px}
+  .dnav.dnext{right:14px}
+  @media(max-width:560px){.dnav{width:40px;height:40px;font-size:22px}.dnav.dprev{left:6px}.dnav.dnext{right:6px}}
   .detail .yr{font-size:12px;color:var(--ink-dim);letter-spacing:.16em}
   .detail h2{margin:4px 0 2px;font-size:30px;letter-spacing:.05em;font-weight:600}
   .detail .rd{font-size:12px;color:var(--ink-dim);letter-spacing:.14em}
@@ -816,7 +825,7 @@ const RICH=[
     yuuryoku:['言葉＝思想を罰する世界への、静かな反抗として読まれる。','尾崎放哉に加え、種田山頭火（「鴉啼いてわたしも一人」等）の自由律句を重ねる考察もある。'],
     user:[]}},
 
- {id:'sayumou',title:'左右盲',reading:'さゆうもう',album:'幻燈',albumYear:'幻燈 #14',bpm:76,key:'D',season:'winter',
+ {id:'sayumou',title:'左右盲',reading:'さゆうもう',album:'幻燈',albumYear:'幻燈 #14',bpm:76,key:'D',season:'summer',
   tieup:'映画『今夜、世界からこの恋が消えても』主題歌',
   shincho:'『幸福な王子』オスカー・ワイルド',
   axes:{t:.8,e:.3}, motifs:['献身','喪失','右と左','冬'],
@@ -1728,7 +1737,7 @@ SONGS.filter(s=>!s.hideCosmos).forEach((s,i)=>{
   el.style.color=SEASON[s.season];
   el.style.animationDelay=(1.5+i*0.016)+'s'; // 星が時間差で灯る
   el.innerHTML=`<div class="dot"></div><div class="nm">${s.title}</div>`;
-  el.onclick=(e)=>{if(!czDragged)goToSong(s.id);};
+  // タップ→曲移動は cosmos の pointerup 側で一元処理（スマホの合成clickに依存しない）
   cosmosInner.appendChild(el);
 });
 // 演出が済んだら igniting/first を外して通常状態へ（再描画時のちらつき防止）
@@ -1755,14 +1764,18 @@ cosmos.addEventListener('wheel',e=>{e.preventDefault();const R=cosmos.getBoundin
   czZoom(e.deltaY<0?1.18:1/1.18,e.clientX-R.left,e.clientY-R.top);},{passive:false});
 // 1本指=パン（拡大時）／2本指=ピンチズーム（スマホ対応）
 const czPts=new Map(); let czPinchDist=0, czPinchCz=1;
+// タップ判定用（スマホで star の click が発火しない/ズーム時に微ジターで無効化される問題への対策）
+let czTapX=0, czTapY=0, czTapStar=null, czPinched=false;
 const czDist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 cosmos.addEventListener('dragstart',e=>e.preventDefault());
 cosmos.addEventListener('pointerdown',e=>{
   if(e.target.closest('.cz-ctrl,.link-ctrl'))return;   // コントロール上ではドラッグ/キャプチャを開始しない
+  const first=czPts.size===0;
   czPts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(first){ czTapX=e.clientX; czTapY=e.clientY; czTapStar=e.target.closest('.star'); czPinched=false; } // 押した瞬間の位置と星を記録
   if(czPts.size===1) czDragged=false;   // 新しいジェスチャー開始：前のドラッグ/ピンチ状態を持ち越さない（星タップが効かなくなるバグ対策）
   if(czPts.size===2){ // ピンチ開始（両ポインタをキャプチャ）
-    czDrag=false; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true;
+    czDrag=false; czPinched=true; const p=[...czPts.values()]; czPinchDist=czDist(p[0],p[1]); czPinchCz=cz; czDragged=true;
     czPts.forEach((_,id)=>{try{cosmos.setPointerCapture(id);}catch(_){}});
   } else if(czPts.size===1 && cz>1 && (e.pointerType!=='mouse'||e.button===0)){ // パン開始（拡大時のみ）
     e.preventDefault(); czDrag=true; czDragged=false; czSX=e.clientX-cx; czSY=e.clientY-cy;
@@ -1791,9 +1804,19 @@ cosmos.addEventListener('pointermove',e=>{
 });
 function czEnd(){czDrag=false;setTimeout(()=>czDragged=false,30);}
 function czPointerUp(e){
+  const wasLast=czPts.size===1;                 // この離しで指が0本になる＝ジェスチャー終了
   czPts.delete(e.pointerId);
   if(czPts.size<2)czPinchDist=0;
-  if(czPts.size===0)czEnd();
+  if(czPts.size===0){
+    czEnd();
+    // タップ（ほぼ動かさずに離した＝ピンチでもドラッグでもない）なら、押した星の曲へ移動。
+    // ズーム中でも微ジターで無効化されないよう、click ではなく移動量で判定する。
+    if(e.type==='pointerup' && !czPinched && czTapStar){
+      const moved=Math.hypot(e.clientX-czTapX, e.clientY-czTapY);
+      if(moved<14){ const id=czTapStar.dataset.id; if(id) goToSong(id); }
+    }
+    czTapStar=null;
+  }
   else if(czPts.size===1 && cz>1){ const p=[...czPts.values()][0]; czDrag=true; czSX=p.x-cx; czSY=p.y-cy; }
 }
 cosmos.addEventListener('pointerup',czPointerUp);
@@ -1982,6 +2005,7 @@ function renderGrid(){
 
 // ── detail modal ──
 const scrim=$('#scrim');
+let curSong=null;
 function layerBlock(kind,items){
   if(!items||!items.length) return '';
   return `<div class="layer ${kind}"><div class="lh">${CONF[kind]}</div>
@@ -2092,6 +2116,8 @@ function openDetail(id){
     </div></div></div>`;
 
   $('#detail').innerHTML=`
+    <button class="dnav dprev" onclick="navSong('${s.id}',-1)" title="前の曲（←）" aria-label="前の曲">‹</button>
+    <button class="dnav dnext" onclick="navSong('${s.id}',1)" title="次の曲（→）" aria-label="次の曲">›</button>
     <div class="hero" style="--hero:${hero}33">
       <button class="share" onclick="shareSong('${s.id}')" title="この曲へのリンクをコピー">🔗 共有</button>
       <button class="close" onclick="closeDetail()">×</button>
@@ -2128,12 +2154,21 @@ function openDetail(id){
     </div>`;
   scrim.classList.add('open');
   document.body.style.overflow='hidden';
+  curSong=s.id;
   try{history.replaceState(null,'','#song='+s.id);}catch(_){}
 }
-function closeDetail(){scrim.classList.remove('open');document.body.style.overflow='';
+function closeDetail(){scrim.classList.remove('open');document.body.style.overflow='';curSong=null;
   try{history.replaceState(null,'',location.pathname+location.search);}catch(_){}}
+// 隣の曲へ移動（アルバム順。端は反対側へループ）
+const navOrder=()=>[...SONGS].sort(byAlbum);
+function navSong(id,dir){ const l=navOrder(); const i=l.findIndex(x=>x.id===id); if(i<0)return; const j=(i+dir+l.length)%l.length; openDetail(l[j].id); }
 scrim.onclick=e=>{if(e.target===scrim)closeDetail();};
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail();});
+document.addEventListener('keydown',e=>{
+  if(!scrim.classList.contains('open'))return;
+  if(e.key==='Escape')closeDetail();
+  else if(e.key==='ArrowRight'&&curSong)navSong(curSong,1);
+  else if(e.key==='ArrowLeft'&&curSong)navSong(curSong,-1);
+});
 
 // ── leaflet atlas ──
 let map,markers={};
